@@ -8,6 +8,7 @@
 #include "led/led.h"
 #include "i2c/sgp41/sgp41.c"
 #include "i2c/i2c_impl.h"
+#include "touchpad/touchpad.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -29,6 +30,14 @@ void app_main(void)
 #if CONFIG_BME280_ENABLED
 	bme280_init();
 #endif
+
+#if CONFIG_TOUCHPAD_ENABLED
+	touchpad_init();
+#endif
+
+	while(true) {
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
+	}
 
 	sgp41_data_t result;
 	while(true) {

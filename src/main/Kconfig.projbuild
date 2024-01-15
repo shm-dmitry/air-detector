@@ -91,6 +91,20 @@ menu "Air-Detector Settings"
    	  		string "MQTT topic for sensor data"
    	  		default "/air/bme280/0/data"
    	  endmenu
+   	  
+   	  menu "Touchpad"
+   	  	config TOUCHPAD_ENABLED
+	   	  	boolean "Enable touchpad sensor integraion"
+	   	  	default false
+   	  	
+	   	config TOUCHPAD_ID
+	   	  	int "Touchpad ID"
+	   	  	default 2
+   	  	
+   	  	config TOUCHPAD_TOPIC_DATA
+   	  		string "MQTT topic for sensor data"
+   	  		default "/air/touchpad/0/data"
+   	  endmenu
    endmenu
  endmenu
  

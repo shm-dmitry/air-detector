@@ -15,10 +15,15 @@
 #include "freertos/queue.h"
 
 #define LED_SENDER_TASK_STACK_SIZE	2048
+#define LED_OVERRIDE_COLOR_NODATA	0x00000000
 
 rmt_channel_handle_t tx_channel = NULL;
 rmt_encoder_handle_t led_send_encoder = NULL;
 QueueHandle_t led_send_queue = NULL;
+uint32_t led_override_color_rgbw = LED_OVERRIDE_COLOR_NODATA;
+uint32_t led_color_rgbw          = LED_OVERRIDE_COLOR_NODATA;
+
+void led_update_color();
 
 void led_commands(const char * topic, const char * data) {
 	cJSON *root = cJSON_Parse(data);
@@ -76,27 +81,18 @@ static void led_sender_task(void* arg) {
 }
 
 void led_set_color(uint32_t rgbw) {
-	uint8_t * temp = (uint8_t *)&rgbw;
+	led_color_rgbw = rgbw;
+	led_update_color();
+}
 
-	uint8_t w = temp[0];
-	uint8_t b = temp[1];
-	uint8_t g = temp[2];
-	uint8_t r = temp[3];
+void led_set_override_color(uint32_t rgbw) {
+	led_override_color_rgbw = rgbw;
+	led_update_color();
+}
 
-	ESP_LOGI(LOG_LED, "LED: R = %02X; G = %02X; B = %02X; W = %02X", r, g, b, w);
-
-	rgbw = 0;
-
-	if (w == 0 && r == g && r == b) {
-		temp[3] = r;
-	} else {
-		temp[0] = g;
-		temp[1] = r;
-		temp[2] = b;
-		temp[3] = w;
-	}
-
-    xQueueSend(led_send_queue, &rgbw, ( TickType_t ) 10);
+void led_reset_override_color() {
+	led_override_color_rgbw = LED_OVERRIDE_COLOR_NODATA;
+	led_update_color();
 }
 
 void led_init() {
@@ -134,3 +130,30 @@ void led_init() {
 
     ESP_LOGI(LOG_LED, "LED initialized");
 }
+
+void led_update_color() {
+	uint32_t rgbw = (led_override_color_rgbw == LED_OVERRIDE_COLOR_NODATA) ? led_color_rgbw : led_override_color_rgbw;
+
+	uint8_t * temp = (uint8_t *)&rgbw;
+
+	uint8_t w = temp[0];
+	uint8_t b = temp[1];
+	uint8_t g = temp[2];
+	uint8_t r = temp[3];
+
+	ESP_LOGI(LOG_LED, "LED: R = %02X; G = %02X; B = %02X; W = %02X", r, g, b, w);
+
+	rgbw = 0;
+
+	if (w == 0 && r == g && r == b) {
+		temp[3] = r;
+	} else {
+		temp[0] = g;
+		temp[1] = r;
+		temp[2] = b;
+		temp[3] = w;
+	}
+
+    xQueueSend(led_send_queue, &rgbw, ( TickType_t ) 10);
+}
+
