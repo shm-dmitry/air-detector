@@ -51,6 +51,10 @@ menu "Air-Detector Settings"
    	  config LED_GPIO
    	  	 int "LED DIN pin connected to (inverted signal)"
    	  	 default 4
+  	 
+  	  config LED_TOPIC_COMMANDS
+  		 string "MQTT topic to listen commands"
+  		 default "/air/led/0/command"
    endmenu
 
    menu "I2C"

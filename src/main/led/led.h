@@ -4,6 +4,6 @@
 #include "stdint.h"
 
 void led_init();
-void led_send(uint32_t rgb);
+void led_set_color(uint32_t rgbw);
 
 #endif /* MAIN_LED_LED_H_ */

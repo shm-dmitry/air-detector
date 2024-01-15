@@ -2,6 +2,10 @@
 
 #include "led_encoder.h"
 #include "../log/log.h"
+#include "../common/mqtt.h"
+
+#include "cJSON.h"
+#include "string.h"
 
 #include "driver/rmt_tx.h"
 #include "driver/gpio.h"
@@ -15,6 +19,31 @@
 rmt_channel_handle_t tx_channel = NULL;
 rmt_encoder_handle_t led_send_encoder = NULL;
 QueueHandle_t led_send_queue = NULL;
+
+void led_commands(const char * topic, const char * data) {
+	cJSON *root = cJSON_Parse(data);
+	if (root == NULL) {
+		return;
+	}
+
+	char * type = cJSON_GetStringValue(cJSON_GetObjectItem(root, "type"));
+	if (strcmp(type, "set_color") == 0) {
+		char * rgbs = cJSON_GetStringValue(cJSON_GetObjectItem(root, "rgb"));
+		if (strlen(rgbs) == 0) {
+			return;
+		}
+
+		char* invptr = NULL;
+		uint32_t rgb = strtol(rgbs, &invptr, 16);
+		if (invptr == NULL || invptr == rgbs + strlen(rgbs)) {
+			led_set_color(rgb);
+		} else {
+			ESP_LOGE(LOG_LED, "Cant parse RGB color %s. Bad char at position %d", rgbs, (int)(invptr - rgbs));
+		}
+	}
+
+	cJSON_Delete(root);
+}
 
 static void led_sender_task(void* arg) {
     rmt_transmit_config_t transmit_config = {
@@ -46,8 +75,8 @@ static void led_sender_task(void* arg) {
 	}
 }
 
-void led_send(uint32_t rgb) {
-	uint8_t * temp = (uint8_t *)&rgb;
+void led_set_color(uint32_t rgbw) {
+	uint8_t * temp = (uint8_t *)&rgbw;
 
 	uint8_t w = temp[0];
 	uint8_t b = temp[1];
@@ -56,7 +85,7 @@ void led_send(uint32_t rgb) {
 
 	ESP_LOGI(LOG_LED, "LED: R = %02X; G = %02X; B = %02X; W = %02X", r, g, b, w);
 
-	rgb = 0;
+	rgbw = 0;
 
 	if (w == 0 && r == g && r == b) {
 		temp[3] = r;
@@ -67,7 +96,7 @@ void led_send(uint32_t rgb) {
 		temp[3] = w;
 	}
 
-    xQueueSend(led_send_queue, &rgb, ( TickType_t ) 10);
+    xQueueSend(led_send_queue, &rgbw, ( TickType_t ) 10);
 }
 
 void led_init() {
@@ -100,6 +129,8 @@ void led_init() {
     led_send_queue = xQueueCreate(10, sizeof(uint32_t));
 
 	xTaskCreate(led_sender_task, "LED sender", LED_SENDER_TASK_STACK_SIZE, NULL, 10, NULL);
+
+	mqtt_subscribe(CONFIG_LED_TOPIC_COMMANDS, led_commands);
 
     ESP_LOGI(LOG_LED, "LED initialized");
 }
