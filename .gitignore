@@ -1,0 +1,8 @@
+schematics/air-detector/air-detector-backups
+schematics/air-detector/*.lck
+src/build/
+src/sdkconfig
+src/sdkconfig.old
+3d/*.gcode
+3d/*.FCBak
+

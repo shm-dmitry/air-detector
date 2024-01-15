@@ -1,0 +1,13 @@
+#ifndef MAIN_LOG_LOG_H_
+#define MAIN_LOG_LOG_H_
+
+#include "esp_log.h"
+
+#define LOG_NWS_RW       "nws_rw"
+#define LOG_WIFI         "wifi"
+#define LOG_MQTT		 "mqtt"
+#define LOG_LED			 "led"
+#define LOG_SGP41		 "sgp41"
+#define LOG_I2C			 "i2c"
+
+#endif /* MAIN_LOG_LOG_H_ */
