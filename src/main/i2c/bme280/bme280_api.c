@@ -1,7 +1,7 @@
 #include "bme280_api.h"
 
 #include "bme280_math.h"
-#include "../../log.h"
+#include "../../log/log.h"
 
 #include "string.h"
 
@@ -19,41 +19,42 @@
 #define SENSOR_DATA_LENGTH 8
 
 static bme280_math_calibration_table_t * calibration_table = NULL;
+static i2c_handler_t * bme280_i2c = NULL;
 
-esp_err_t bme280_write_register(i2c_handler_t * i2c, uint8_t register_id, uint8_t value);
-esp_err_t bme280_read_registers(i2c_handler_t * i2c, uint8_t from_register_id, uint8_t * buffer, uint8_t buffer_size);
-esp_err_t bme280_update_settings(i2c_handler_t * i2c);
+esp_err_t bme280_write_register(uint8_t register_id, uint8_t value);
+esp_err_t bme280_read_registers(uint8_t from_register_id, uint8_t * buffer, uint8_t buffer_size);
+esp_err_t bme280_update_settings();
 
 double bme280_round(double value) {
 	int32_t temp = value * 10;
 	return (double) temp / 10.0;
 }
 
-esp_err_t bme280_read_calibration_table(i2c_handler_t * i2c) {
+esp_err_t bme280_read_calibration_table() {
 	uint8_t buffer_88[26] = { 0 };
 	uint8_t buffer_e1[7] = { 0 };
 
-	esp_err_t res = bme280_read_registers(i2c, 0x88, buffer_88, 26);
+	esp_err_t res = bme280_read_registers(0x88, buffer_88, 26);
 	if (res) {
-		ESP_LOGE(BME280_LOG, "Cant read calibration table from address 0x88: %d", res);
+		ESP_LOGE(LOG_BME280, "Cant read calibration table from address 0x88: %d", res);
 		return res;
 	}
 
-	res = bme280_read_registers(i2c, 0xE1, buffer_e1, 7);
+	res = bme280_read_registers(0xE1, buffer_e1, 7);
 	if (res) {
-		ESP_LOGE(BME280_LOG, "Cant read calibration table from address 0xE1: %d", res);
+		ESP_LOGE(LOG_BME280, "Cant read calibration table from address 0xE1: %d", res);
 		return res;
 	}
 
 	calibration_table = bme280_math_init_calibration_table(buffer_88, buffer_e1);
 
 /*
-	ESP_LOGI(BME280_LOG, "CT: T1 = %d, T2 = %d, T3 = %d", calibration_table->dig_T1, calibration_table->dig_T2, calibration_table->dig_T3);
-	ESP_LOGI(BME280_LOG, "CT: P1 = %d, P2 = %d, P3 = %d, P4 = %d, P5 = %d, P6 = %d, P7 = %d, P8 = %d, P9 = %d",
+	ESP_LOGI(LOG_BME280, "CT: T1 = %d, T2 = %d, T3 = %d", calibration_table->dig_T1, calibration_table->dig_T2, calibration_table->dig_T3);
+	ESP_LOGI(LOG_BME280, "CT: P1 = %d, P2 = %d, P3 = %d, P4 = %d, P5 = %d, P6 = %d, P7 = %d, P8 = %d, P9 = %d",
 			  calibration_table->dig_P1, calibration_table->dig_P2, calibration_table->dig_P3
 			, calibration_table->dig_P4, calibration_table->dig_P5, calibration_table->dig_P6
 			, calibration_table->dig_P7, calibration_table->dig_P8, calibration_table->dig_P9);
-	ESP_LOGI(BME280_LOG, "CT: H1 = %d, H2 = %d, H3 = %d, H4 = %d, H5 = %d, H6 = %d", calibration_table->dig_H1, calibration_table->dig_H2, calibration_table->dig_H3
+	ESP_LOGI(LOG_BME280, "CT: H1 = %d, H2 = %d, H3 = %d, H4 = %d, H5 = %d, H6 = %d", calibration_table->dig_H1, calibration_table->dig_H2, calibration_table->dig_H3
 			, calibration_table->dig_H4, calibration_table->dig_H5, calibration_table->dig_H6);
 */
 
@@ -61,32 +62,34 @@ esp_err_t bme280_read_calibration_table(i2c_handler_t * i2c) {
 }
 
 esp_err_t bme280_init_driver(i2c_handler_t * i2c) {
-	esp_err_t res = bme280_read_calibration_table(i2c);
+	bme280_i2c = i2c;
+
+	esp_err_t res = bme280_read_calibration_table();
 	if (res) {
-		ESP_LOGE(BME280_LOG, "Cant read calibration table: %d", res);
+		ESP_LOGE(LOG_BME280, "Cant read calibration table: %d", res);
 		return res;
 	}
 
-	res = bme280_update_settings(i2c);
+	res = bme280_update_settings();
 	if (res) {
-		ESP_LOGE(BME280_LOG, "Cant wakeup sensor: %d", res);
+		ESP_LOGE(LOG_BME280, "Cant wakeup sensor: %d", res);
 		return res;
 	}
 
 	return ESP_OK;
 }
 
-esp_err_t bme280_read(i2c_handler_t * i2c, bme280_data_t * to) {
+esp_err_t bme280_read(bme280_data_t * to) {
 	if (calibration_table == NULL) {
-		ESP_LOGE(BME280_LOG, "Driver not initialized.");
+		ESP_LOGE(LOG_BME280, "Driver not initialized.");
 		return ESP_FAIL;
 	}
 
 	uint8_t buffer[SENSOR_DATA_LENGTH] = { 0 };
 
-	esp_err_t err = bme280_read_registers(i2c, REGISTER_PRESS, buffer, SENSOR_DATA_LENGTH);
+	esp_err_t err = bme280_read_registers(REGISTER_PRESS, buffer, SENSOR_DATA_LENGTH);
 	if (err) {
-		ESP_LOGE(BME280_LOG, "Cant read measurement: %d", err);
+		ESP_LOGE(LOG_BME280, "Cant read measurement: %d", err);
 		return err;
 	}
 
@@ -118,41 +121,41 @@ esp_err_t bme280_update_settings(i2c_handler_t * i2c) {
 	uint8_t ctrl_meas = (settings.tosr << 5) | (settings.posr << 2) | settings.mode;
 	uint8_t config = settings.time << 5 | settings.filter << 2;
 
-	esp_err_t res = bme280_write_register(i2c, REGISTER_CTRL_HUM, ctrl_hum);
+	esp_err_t res = bme280_write_register(REGISTER_CTRL_HUM, ctrl_hum);
 	if (res) {
-		ESP_LOGE(BME280_LOG, "Cant write to control register %02x value %02x", REGISTER_CTRL_HUM, ctrl_hum);
+		ESP_LOGE(LOG_BME280, "Cant write to control register %02x value %02x", REGISTER_CTRL_HUM, ctrl_hum);
 		return res;
 	}
 
-	res = bme280_write_register(i2c, REGISTER_CTRL_MEAS, ctrl_meas);
+	res = bme280_write_register(REGISTER_CTRL_MEAS, ctrl_meas);
 	if (res) {
-		ESP_LOGE(BME280_LOG, "Cant write to control register %02x value %02x", REGISTER_CTRL_MEAS, ctrl_meas);
+		ESP_LOGE(LOG_BME280, "Cant write to control register %02x value %02x", REGISTER_CTRL_MEAS, ctrl_meas);
 		return res;
 	}
 
-	res = bme280_write_register(i2c, REGISTER_CONFIG, config);
+	res = bme280_write_register(REGISTER_CONFIG, config);
 	if (res) {
-		ESP_LOGE(BME280_LOG, "Cant write to control register %02x value %02x", REGISTER_CONFIG, config);
+		ESP_LOGE(LOG_BME280, "Cant write to control register %02x value %02x", REGISTER_CONFIG, config);
 		return res;
 	}
 
 	return ESP_OK;
 }
 
-esp_err_t bme280_write_register(i2c_handler_t * i2c, uint8_t register_id, uint8_t value) {
+esp_err_t bme280_write_register(uint8_t register_id, uint8_t value) {
 	uint8_t buffer[2] = { register_id, value };
-	esp_err_t res = i2c->write(BME280_I2C_ADDRESS, buffer, 2);
+	esp_err_t res = bme280_i2c->write(BME280_I2C_ADDRESS, buffer, 2);
 	if (res) {
-		ESP_LOGE(BME280_LOG, "Cant write value %20x into register %02x: %d", value, register_id, res);
+		ESP_LOGE(LOG_BME280, "Cant write value %20x into register %02x: %d", value, register_id, res);
 	}
 
 	return res;
 }
 
-esp_err_t bme280_read_registers(i2c_handler_t * i2c, uint8_t from_register_id, uint8_t * buffer, uint8_t buffer_size) {
-	esp_err_t res = i2c->write_read(BME280_I2C_ADDRESS, &from_register_id, 1, buffer, buffer_size);
+esp_err_t bme280_read_registers(uint8_t from_register_id, uint8_t * buffer, uint8_t buffer_size) {
+	esp_err_t res = bme280_i2c->write_read(BME280_I2C_ADDRESS, &from_register_id, 1, buffer, buffer_size);
 	if (res) {
-		ESP_LOGE(BME280_LOG, "Cant read register %02x: %d", from_register_id, res);
+		ESP_LOGE(LOG_BME280, "Cant read register %02x: %d", from_register_id, res);
 	}
 
 	return res;

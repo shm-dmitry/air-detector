@@ -26,6 +26,10 @@ void app_main(void)
 	sgp41_init();
 #endif
 
+#if CONFIG_BME280_ENABLED
+	bme280_init();
+#endif
+
 	sgp41_data_t result;
 	while(true) {
 		vTaskDelay(1000 / portTICK_PERIOD_MS);

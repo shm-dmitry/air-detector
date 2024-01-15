@@ -77,6 +77,16 @@ menu "Air-Detector Settings"
    	  		string "MQTT topic for sensor data"
    	  		default "/air/sgp41/0/data"
    	  endmenu
+
+   	  menu "BME280"
+   	  	config BME280_ENABLED
+	   	  	boolean "Enable BME280 sensor integraion"
+	   	  	default false
+   	  	
+   	  	config BME280_TOPIC_DATA
+   	  		string "MQTT topic for sensor data"
+   	  		default "/air/bme280/0/data"
+   	  endmenu
    endmenu
  endmenu
  

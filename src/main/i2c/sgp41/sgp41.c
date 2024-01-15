@@ -11,6 +11,8 @@
 #include "../sgp41/sgp41_api.h"
 #include "../../log/log.h"
 
+#include "../bme280/bme280_api.h"
+
 #define SGP41_EXEC_PERIOD 30000000
 #define SGP41_APPLY_COMPENSATION_PERIOD 60000000
 
@@ -42,7 +44,12 @@ void sgp41_timer_exec_function(void* arg) {
 }
 
 void sgp41_timer_apply_correction_function(void* arg) {
-	// TODO
+#if CONFIG_BME280_ENABLED
+	bme280_data_t data = {0};
+	if (bme280_read(&data) == ESP_OK) {
+		sgp41_set_temp_humidity(data.temperature, data.humidity);
+	}
+#endif
 }
 
 void sgp41_init() {

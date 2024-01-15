@@ -60,10 +60,10 @@ typedef struct bme280_settings_t {
 	bme280_filter filter;
 } bme280_settings_t;
 
-esp_err_t bme280_save_settings(i2c_handler_t * i2c, bme280_settings_t * settings);
+esp_err_t bme280_save_settings(bme280_settings_t * settings);
 
 esp_err_t bme280_init_driver(i2c_handler_t * i2c);
 
-esp_err_t bme280_read(i2c_handler_t * i2c, bme280_data_t * to);
+esp_err_t bme280_read(bme280_data_t * to);
 
 #endif /* MAIN_I2C_BME280_BME280_API_H_ */

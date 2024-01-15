@@ -2,7 +2,7 @@
 
 #include "stdlib.h"
 
-#include "../../log.h"
+#include "../../log/log.h"
 
 #define HI_COEFF1 -42.379
 #define HI_COEFF2   2.04901523
@@ -16,6 +16,8 @@
 
 #define MASS_OF_WATTER 18.01534
 #define UNIV_GAZ_CONSTANT 8.31447215
+
+#define absf(x) (((x) > 0) ? (x) : -(x))
 
 bme280_math_calibration_table_t * bme280_math_init_calibration_table(uint8_t * buffer_88, uint8_t * buffer_e1) {
 	bme280_math_calibration_table_t * calibration_table = malloc(sizeof(bme280_math_calibration_table_t));
@@ -119,7 +121,7 @@ float bme280_math_calcilate_heatindex(float temperature, float humidity) {
 			heat_index = HI_COEFF1 + (HI_COEFF2 + HI_COEFF4 * humidity + temperature * (HI_COEFF5 + HI_COEFF7 * humidity)) * temperature
 					+ (HI_COEFF3 + humidity * (HI_COEFF6 + temperature * (HI_COEFF8 + HI_COEFF9 * temperature))) * humidity;
 			if ((humidity < 13) && (temperature >= 80.0) && (temperature <= 112.0)) {
-				heat_index -= ((13.0 - humidity) * 0.25) * sqrt((17.0 - abs(temperature - 95.0)) * 0.05882);
+				heat_index -= ((13.0 - humidity) * 0.25) * sqrt((17.0 - absf(temperature - 95.0)) * 0.05882);
 			} else if ((humidity > 85.0) && (temperature >= 80.0) && (temperature <= 87.0)) {
 				heat_index += (0.02 * (humidity - 85.0) * (87.0 - temperature));
 			}

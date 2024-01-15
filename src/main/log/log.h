@@ -9,5 +9,6 @@
 #define LOG_LED			 "led"
 #define LOG_SGP41		 "sgp41"
 #define LOG_I2C			 "i2c"
+#define LOG_BME280       "bme280"
 
 #endif /* MAIN_LOG_LOG_H_ */
