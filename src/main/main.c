@@ -9,9 +9,10 @@
 #include "i2c/sgp41/sgp41.c"
 #include "i2c/i2c_impl.h"
 #include "touchpad/touchpad.h"
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "fans/fan/fan.h"
+#include "fans/fan_pwm/fan_pwm.h"
 
 void app_main(void)
 {
@@ -33,6 +34,14 @@ void app_main(void)
 
 #if CONFIG_TOUCHPAD_ENABLED
 	touchpad_init();
+#endif
+
+#if CONFIG_FAN_ENABLED
+	fan_init();
+#endif
+
+#if CONFIG_FANPWM_ENABLED
+	fanpwm_init();
 #endif
 
 	while(true) {

@@ -1,13 +1,12 @@
 #include "fan_pwm_api.h"
 
 #include "fan_pwm_nvs.h"
-#include "../../log.h"
+#include "../../log/log.h"
 
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-static int fan_pwm_gpio = -1;
 static TaskHandle_t fan_pwm_task_handle = NULL;
 
 #define FAN_PWM_HIGL_LEVEL_TIME 500
@@ -17,18 +16,18 @@ static void fan_pwm_task(void* arg) {
 	uint32_t low_time = (uint32_t) arg;
 
 	while (true) {
-		esp_err_t res = gpio_set_level(fan_pwm_gpio, 1);
+		esp_err_t res = gpio_set_level(CONFIG_FANPWM_GPIO, 1);
 		if (res) {
-			ESP_LOGE(FAN_LOG, "Cant set HIGH level on pin %d: %d", fan_pwm_gpio, res);
+			ESP_LOGE(LOG_FANPWM, "Cant set HIGH level on pin %d: %d", CONFIG_FANPWM_GPIO, res);
 			fan_pwm_task_handle = NULL;
 			vTaskDelete(NULL);
 		}
 
 		vTaskDelay(FAN_PWM_HIGL_LEVEL_TIME / portTICK_PERIOD_MS);
 
-		res = gpio_set_level(fan_pwm_gpio, 0);
+		res = gpio_set_level(CONFIG_FANPWM_GPIO, 0);
 		if (res) {
-			ESP_LOGE(FAN_LOG, "Cant set LOW level on pin %d: %d", fan_pwm_gpio, res);
+			ESP_LOGE(LOG_FANPWM, "Cant set LOW level on pin %d: %d", CONFIG_FANPWM_GPIO, res);
 			fan_pwm_task_handle = NULL;
 			vTaskDelete(NULL);
 		}
@@ -37,24 +36,22 @@ static void fan_pwm_task(void* arg) {
 	}
 }
 
-esp_err_t fan_pwm_init(int gpio) {
-	fan_pwm_gpio = gpio;
-
+esp_err_t fan_pwm_port_init() {
 	gpio_config_t config = {
 		.intr_type = GPIO_INTR_DISABLE,
 	    .mode = GPIO_MODE_OUTPUT,
-		.pin_bit_mask = 1ULL << gpio,
+		.pin_bit_mask = 1ULL << CONFIG_FANPWM_GPIO,
 		.pull_down_en = GPIO_PULLDOWN_ENABLE,
 		.pull_up_en = GPIO_PULLUP_DISABLE,
 	};
 
 	esp_err_t res = gpio_config(&config);
 	if (res) {
-		ESP_LOGI(FAN_PWM_LOG, "Cant init GPIO. error %d", res);
+		ESP_LOGI(LOG_FANPWM, "Cant init GPIO. error %d", res);
 		return res;
 	}
 
-	ESP_LOGI(FAN_PWM_LOG, "Driver initialized on port %d", gpio);
+	ESP_LOGI(LOG_FANPWM, "Driver initialized on port %d", CONFIG_FANPWM_GPIO);
 
 	fan_pwm_set_percent(fan_pwm_nws_read());
 
@@ -74,20 +71,20 @@ esp_err_t fan_pwm_set_percent(uint8_t percent) {
 	}
 
 	if (percent == 100) {
-		esp_err_t res = gpio_set_level(fan_pwm_gpio, 1);
+		esp_err_t res = gpio_set_level(CONFIG_FANPWM_GPIO, 1);
 		if (res) {
-			ESP_LOGE(FAN_LOG, "Cant set HIGH level on pin %d: %d", fan_pwm_gpio, res);
+			ESP_LOGE(LOG_FANPWM, "Cant set HIGH level on pin %d: %d", CONFIG_FANPWM_GPIO, res);
 		} else {
-			ESP_LOGI(FAN_LOG, "HIGH level on pin %d activated.", fan_pwm_gpio);
+			ESP_LOGI(LOG_FANPWM, "HIGH level on pin %d activated.", CONFIG_FANPWM_GPIO);
 		}
 
 		return res;
 	} else {
-		esp_err_t res = gpio_set_level(fan_pwm_gpio, 0);
+		esp_err_t res = gpio_set_level(CONFIG_FANPWM_GPIO, 0);
 		if (res) {
-			ESP_LOGE(FAN_LOG, "Cant set LOW level on pin %d: %d", fan_pwm_gpio, res);
+			ESP_LOGE(LOG_FANPWM, "Cant set LOW level on pin %d: %d", CONFIG_FANPWM_GPIO, res);
 		} else {
-			ESP_LOGI(FAN_LOG, "HIGH level on pin %d activated.", fan_pwm_gpio);
+			ESP_LOGI(LOG_FANPWM, "HIGH level on pin %d activated.", CONFIG_FANPWM_GPIO);
 		}
 	}
 

@@ -1,6 +1,6 @@
 #include "fan_pwm_nvs.h"
 
-#include "../../init/nvs_rw.h"
+#include "../../common/nvs_rw.h"
 
 #define FAN_PWM_NVS_NAME "fan_pwm_value"
 #define DEFAULT_FAN_PWM_VALUE 0

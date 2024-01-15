@@ -105,6 +105,34 @@ menu "Air-Detector Settings"
    	  		string "MQTT topic for sensor data"
    	  		default "/air/touchpad/0/data"
    	  endmenu
+   	  
+   	  menu "External FAN"
+   	  	config FAN_ENABLED
+	   	  	boolean "Enable external fan integraion"
+	   	  	default false
+   	  	
+	   	config FAN_GPIO
+	   	  	int "FAN GPIO"
+	   	  	default 25
+   	  	
+   	  	config FAN_TOPIC_DATA
+   	  		string "MQTT topic for sensor data"
+   	  		default "/air/fan/0/command"
+   	  endmenu
+
+   	  menu "Cooler FAN"
+   	  	config FANPWM_ENABLED
+	   	  	boolean "Enable fanpwm integraion"
+	   	  	default false
+   	  	
+	   	config FANPWM_GPIO
+	   	  	int "FANpwm GPIO"
+	   	  	default 26
+   	  	
+   	  	config FANPWM_TOPIC_COMMAND
+   	  		string "MQTT topic for commands to fan"
+   	  		default "/air/fanpwm/0/command"
+   	  endmenu
    endmenu
  endmenu
  

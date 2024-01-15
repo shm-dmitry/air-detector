@@ -11,5 +11,7 @@
 #define LOG_I2C			 "i2c"
 #define LOG_BME280       "bme280"
 #define LOG_TOUCHPAD     "touchpad"
+#define LOG_FAN          "fan"
+#define LOG_FANPWM		 "fanpwm"
 
 #endif /* MAIN_LOG_LOG_H_ */

@@ -19,6 +19,10 @@ idf_component_register(
     	 "i2c/bme280/bme280_math.c"
     	 "touchpad/touchpad.c"
     	 "touchpad/touchpad_api.c"
+    	 "fans/fan/fan.c"
+    	 "fans/fan_pwm/fan_pwm.c"
+    	 "fans/fan_pwm/fan_pwm_api.c"
+    	 "fans/fan_pwm/fan_pwm_nvs.c"
     INCLUDE_DIRS        # optional, add here public include directories
     PRIV_INCLUDE_DIRS   # optional, add here private include directories
     REQUIRES            # optional, list the public requirements (component names)
