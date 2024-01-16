@@ -16,6 +16,8 @@
 #define SGP41_EXEC_PERIOD 30000000
 #define SGP41_APPLY_COMPENSATION_PERIOD 60000000
 
+void sgp41_init_auto_compensation();
+
 void sgp41_timer_exec_function(void* arg) {
 	sgp41_data_t data = { 0 };
 	if (sgp41_read(&data)) {
@@ -71,6 +73,10 @@ void sgp41_init() {
 		esp_timer_handle_t periodic_timer;
 		ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
 		ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, SGP41_EXEC_PERIOD));
+
+#if CONFIG_BME280_ENABLED
+		sgp41_init_auto_compensation();
+#endif
 	}
 }
 
@@ -78,7 +84,7 @@ void sgp41_init_auto_compensation() {
 	esp_timer_create_args_t periodic_timer_args = {
 			.callback = &sgp41_timer_apply_correction_function,
 			/* name is optional, but may help identify the timer when debugging */
-			.name = "Humidity auto compensation from BME280"
+			.name = "Humidity auto compensation from BME280 for SGP41"
 	};
 
 	esp_timer_handle_t periodic_timer;

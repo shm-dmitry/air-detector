@@ -133,6 +133,24 @@ menu "Air-Detector Settings"
    	  		string "MQTT topic for commands to fan"
    	  		default "/air/fanpwm/0/command"
    	  endmenu
+   	  
+   	  menu "MQ136 (H2S)"
+   	  	config MQ136_ENABLED
+	   	  	boolean "Enable MQ136 integraion"
+	   	  	default false
+   	  	
+	   	config MQ136_ADC_CHANNEL
+	   	  	int "ADC channel connected to sensor"
+	   	  	default 5
+   	  	
+   	  	config MQ136_TOPIC_DATA
+   	  		string "MQTT topic for sensor data"
+   	  		default "/air/mq136/0/data"
+   	  	
+   	  	config MQ136_TOPIC_COMMAND
+   	  		string "MQTT topic for commands to sensor"
+   	  		default "/air/mq136/0/command"
+   	  endmenu
    endmenu
  endmenu
  

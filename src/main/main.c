@@ -13,6 +13,7 @@
 #include "freertos/task.h"
 #include "fans/fan/fan.h"
 #include "fans/fan_pwm/fan_pwm.h"
+#include "mq136/mq136.h"
 
 void app_main(void)
 {
@@ -30,6 +31,10 @@ void app_main(void)
 
 #if CONFIG_BME280_ENABLED
 	bme280_init();
+#endif
+
+#if CONFIG_MQ136_ENABLED
+	mq136_init();
 #endif
 
 #if CONFIG_TOUCHPAD_ENABLED
