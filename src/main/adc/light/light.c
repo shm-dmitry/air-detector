@@ -18,12 +18,12 @@
 #define LIGHT_DEBUG			true
 
 #define LIGHT_ADC_MAX		(4095)
-#define LIGHT_ADC_ZERO		(2000)
+#define LIGHT_ADC_ZERO		(2500)
 
 // ADC_MAX / 2 == 0%, ADC_MAX == 100%
 // y = 100 * (v - Az) / (Am - Az)
 #define LIGHT_ADC_TO_RESULT(value) \
-	(100 * (value - LIGHT_ADC_ZERO) / (LIGHT_ADC_MAX - LIGHT_ADC_ZERO))
+	(value > LIGHT_ADC_ZERO ? (100 * (value - LIGHT_ADC_ZERO) / (LIGHT_ADC_MAX - LIGHT_ADC_ZERO)) : 0)
 
 uint8_t light_read_value() {
 	int value = 0;
@@ -33,11 +33,13 @@ uint8_t light_read_value() {
 		return LIGHT_NOVALUE;
 	}
 
+	uint8_t result = (uint8_t) LIGHT_ADC_TO_RESULT(value);
+
 #if LIGHT_DEBUG
-	ESP_LOGI(LOG_LIGHT, "ADC value = %d", value);
+	ESP_LOGI(LOG_LIGHT, "ADC value = %d; Result = %d%%", value, result);
 #endif
 
-	return (uint8_t) LIGHT_ADC_TO_RESULT(value);
+	return result;
 }
 
 void light_timer_exec_function(void* arg) {

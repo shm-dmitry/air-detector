@@ -132,13 +132,18 @@ uint16_t mq136_adc_to_ppm(int adc) {
 		return MQ136_NOVALUE;
 	}
 
-	double temp = ((double)mq136_calibration_value.v5x100/100.0 * MQ136_AM - (double)adc*MQ136_3_3V);
+	if (adc <= 0) {
+		ESP_LOGW(LOG_MQ136, "Bad ADC data: ADC = %d", adc);
+		return MQ136_NOVALUE;
+	}
+
+	double temp = ((double)mq136_calibration_value.v5x100/100.0 * MQ136_AM - (double)mq136_calibration_value.a0*MQ136_3_3V);
 	if (temp < 0.001 && temp > -0.001) { // check for a division-by-zero
 		ESP_LOGW(LOG_MQ136, "div by zero. Calibration v5x100 = %d, ADC = %d", mq136_calibration_value.v5x100, adc);
 		return MQ136_NOVALUE;
 	}
 
-	double rs_ro = ((double)adc / (double)mq136_calibration_value.a0) *
+	double rs_ro = ((double)mq136_calibration_value.a0 / (double)adc) *
 			((double)mq136_calibration_value.v5x100/100.0 * MQ136_AM - (double)adc*MQ136_3_3V) /
 			temp;
 

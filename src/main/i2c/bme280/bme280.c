@@ -18,6 +18,8 @@ void bme280_timer_exec_function(void* arg) {
 		return;
 	}
 
+	ESP_LOGI(LOG_BME280, "Temperature: %f; Humidity: %f%%", data.temperature, data.humidity);
+
 	cJSON *root = cJSON_CreateObject();
 	cJSON_AddNumberToObject(root, "temperature", data.temperature);
 	cJSON_AddNumberToObject(root, "humidity", data.humidity);

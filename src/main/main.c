@@ -59,6 +59,8 @@ void app_main(void)
 	fanpwm_init();
 #endif
 
+	mq136_calibrate(470);
+
 	while(true) {
 		vTaskDelay(1000 / portTICK_PERIOD_MS);
 	}
