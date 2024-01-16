@@ -9,9 +9,12 @@
 #include "cJSON.h"
 #include "../cjson/cjson_helper.h"
 #include "../common/mqtt.h"
+#include "../log/log.h"
 
 #define LIGHT_EXEC_PERIOD	30000000
 #define LIGHT_NOVALUE       0xFF
+
+#define LIGHT_DEBUG			true
 
 #define LIGHT_ADC_MAX		(4095)
 #define LIGHT_ADC_ZERO		(2000)
@@ -28,8 +31,13 @@ uint8_t light_read_value() {
 	int value = 0;
 	esp_err_t res = adc_oneshot_read(light_adc_channel, (adc_channel_t) CONFIG_LIGHT_ADC_CHANNEL, &value);
 	if (res != ESP_OK) {
+		ESP_LOGE(LOG_LIGHT, "Cant read ADC value. Error %04X", res);
 		return LIGHT_NOVALUE;
 	}
+
+#if LIGHT_DEBUG
+	ESP_LOGI(LOG_LIGHT, "ADC value = %d", value);
+#endif
 
 	return (uint8_t) LIGHT_ADC_TO_RESULT(value);
 }
@@ -62,6 +70,8 @@ void light_init() {
 	};
 	ESP_ERROR_CHECK(adc_oneshot_config_channel(light_adc_channel, (adc_channel_t) CONFIG_LIGHT_ADC_CHANNEL, &config));
 
+    ESP_LOGI(LOG_LIGHT, "ADC initialized");
+
 	esp_timer_create_args_t periodic_timer_args = {
 		.callback = &light_timer_exec_function,
 		/* name is optional, but may help identify the timer when debugging */
@@ -72,4 +82,5 @@ void light_init() {
 	ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
 	ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, LIGHT_EXEC_PERIOD));
 
+    ESP_LOGI(LOG_LIGHT, "Driver initialized");
 }

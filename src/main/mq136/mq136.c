@@ -13,13 +13,18 @@
 #include "../common/mqtt.h"
 #include "mq136_nvs.h"
 #include "../i2c/bme280/bme280_api.h"
+#include "../log/log.h"
 
 #define MQ136_APPLY_COMPENSATION_PERIOD 60000000
 #define MQ136_EXEC_PERIOD  				30000000
 #define MQ136_NOVALUE      				0xFFFF
 #define MQ136_COMPENSATION_NOVALUE      126
+#define MQ136_CALIBRATION_NOVALUE		0xFFFF
 #define MQ136_AM		   				((double)4095.0)
 #define MQ136_3_3V		   				((double)3.3)
+
+#define MQ136_DEBUG_COMPENSATIONS			true
+#define MQ136_DEBUG_CALCULATION				true
 
 // Used a polynomial of the third degree to approxymate graph from datasheet
 // Y = A*x^3 + B*x^2 + C*x + D.
@@ -42,8 +47,8 @@
 
 adc_oneshot_unit_handle_t mq136_adc_channel;
 mq136_nvs_data_t mq136_calibration_value = {
-	.a0 = 0xFFFF,
-	.v5x100 = 0xFFFF
+	.a0     = MQ136_CALIBRATION_NOVALUE,
+	.v5x100 = MQ136_CALIBRATION_NOVALUE
 };
 int8_t mq136_compensation_temperature = MQ136_COMPENSATION_NOVALUE;
 uint8_t mq136_compensation_humidity   = MQ136_COMPENSATION_NOVALUE;
@@ -88,6 +93,11 @@ double mq136_adjust_temperature_humidity(double value) {
 	// corrent temperature to 20grad
 	double temp_delta = temp_delta_h33_t20 - temp_delta_h33_tcur;
 
+#if MQ136_DEBUG_COMPENSATIONS
+	ESP_LOGI(LOG_MQ136, "Apply compensations: H = %d, T = %d; rs/ro = %f, hum_delta = %f; temp_delta = %f; result = %f",
+			_h, _t, value, hum_delta, temp_delta, (value + hum_delta + temp_delta));
+#endif
+
 	// apply compensations
 	return value + hum_delta + temp_delta;
 }
@@ -116,13 +126,15 @@ void mq136_set_temp_humidity(int8_t temperature, uint8_t humidity) {
 // Rs/Ro = (Ao / As) * (V*Am - As*3.3) / (V*Am - Ao*3.3)
 
 uint16_t mq136_adc_to_ppm(int adc) {
-	if (mq136_calibration_value.a0 == 0xFFFF     || mq136_calibration_value.a0 == 0 ||
-		mq136_calibration_value.v5x100 == 0xFFFF || mq136_calibration_value.v5x100 == 0) {
+	if (mq136_calibration_value.a0 == MQ136_CALIBRATION_NOVALUE     || mq136_calibration_value.a0 == 0 ||
+		mq136_calibration_value.v5x100 == MQ136_CALIBRATION_NOVALUE || mq136_calibration_value.v5x100 == 0) {
+		ESP_LOGW(LOG_MQ136, "No calibration. ADC = %d", adc);
 		return MQ136_NOVALUE;
 	}
 
 	double temp = ((double)mq136_calibration_value.v5x100/100.0 * MQ136_AM - (double)adc*MQ136_3_3V);
 	if (temp < 0.001 && temp > -0.001) { // check for a division-by-zero
+		ESP_LOGW(LOG_MQ136, "div by zero. Calibration v5x100 = %d, ADC = %d", mq136_calibration_value.v5x100, adc);
 		return MQ136_NOVALUE;
 	}
 
@@ -130,15 +142,30 @@ uint16_t mq136_adc_to_ppm(int adc) {
 			((double)mq136_calibration_value.v5x100/100.0 * MQ136_AM - (double)adc*MQ136_3_3V) /
 			temp;
 
+#if MQ136_DEBUG_CALCULATION
+	ESP_LOGI(LOG_MQ136, "Before compensations: ADC = %d -> rs/ro = %f", adc, rs_ro);
+#endif
+
 	rs_ro = mq136_adjust_temperature_humidity(rs_ro);
 
-	return MQ136_SOLVE_RSRO_TO_PPM(rs_ro);
+#if MQ136_DEBUG_CALCULATION
+	ESP_LOGI(LOG_MQ136, "After compensations: ADC = %d -> rs/ro = %f", adc, rs_ro);
+#endif
+
+	uint16_t result = MQ136_SOLVE_RSRO_TO_PPM(rs_ro);
+
+#if MQ136_DEBUG_CALCULATION
+	ESP_LOGI(LOG_MQ136, "Result: %d ppm for ADC = %d and rs/ro = %f", result, adc, rs_ro);
+#endif
+
+	return result;
 }
 
 uint16_t mq136_read_value() {
 	int value = 0;
 	esp_err_t res = adc_oneshot_read(mq136_adc_channel, (adc_channel_t) CONFIG_MQ136_ADC_CHANNEL, &value);
 	if (res != ESP_OK) {
+		ESP_LOGE(LOG_MQ136, "Cant read ADC value. Error %04X", res);
 		return MQ136_NOVALUE;
 	}
 
@@ -213,7 +240,15 @@ void mq136_init() {
     };
     ESP_ERROR_CHECK(adc_oneshot_config_channel(mq136_adc_channel, (adc_channel_t) CONFIG_MQ136_ADC_CHANNEL, &config));
 
+    ESP_LOGI(LOG_MQ136, "ADC initialized");
+
     mq136_nws_read(&mq136_calibration_value);
+
+    if (mq136_calibration_value.a0 != MQ136_CALIBRATION_NOVALUE && mq136_calibration_value.v5x100 != MQ136_CALIBRATION_NOVALUE) {
+    	ESP_LOGI(LOG_MQ136, "Calibration value: A0 = %d; v5x100 = %d", mq136_calibration_value.a0, mq136_calibration_value.v5x100);
+    } else {
+    	ESP_LOGW(LOG_MQ136, "No calibration value. Use type='calibrate' and v5_x100=... request");
+    }
 
 	esp_timer_create_args_t periodic_timer_args = {
 		.callback = &mq136_timer_exec_function,
@@ -230,6 +265,8 @@ void mq136_init() {
 #if CONFIG_BME280_ENABLED
 	mq136_init_auto_compensation();
 #endif
+
+    ESP_LOGI(LOG_MQ136, "Driver initialized");
 }
 
 void mq136_init_auto_compensation() {

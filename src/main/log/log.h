@@ -13,5 +13,7 @@
 #define LOG_TOUCHPAD     "touchpad"
 #define LOG_FAN          "fan"
 #define LOG_FANPWM		 "fanpwm"
+#define LOG_MQ136		 "mq136"
+#define LOG_LIGHT		 "light"
 
 #endif /* MAIN_LOG_LOG_H_ */
