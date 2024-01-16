@@ -23,9 +23,10 @@ idf_component_register(
     	 "fans/fan_pwm/fan_pwm.c"
     	 "fans/fan_pwm/fan_pwm_api.c"
     	 "fans/fan_pwm/fan_pwm_nvs.c"
-    	 "mq136/mq136.c"
-    	 "mq136/mq136_nvs.c"
-    	 "light/light.c"
+    	 "adc/mq136/mq136.c"
+    	 "adc/mq136/mq136_nvs.c"
+    	 "adc/light/light.c"
+    	 "adc/adc.c"
     INCLUDE_DIRS        # optional, add here public include directories
     PRIV_INCLUDE_DIRS   # optional, add here private include directories
     REQUIRES            # optional, list the public requirements (component names)

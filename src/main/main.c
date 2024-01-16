@@ -13,8 +13,9 @@
 #include "freertos/task.h"
 #include "fans/fan/fan.h"
 #include "fans/fan_pwm/fan_pwm.h"
-#include "mq136/mq136.h"
-#include "light/light.h"
+#include "adc/mq136/mq136.h"
+#include "adc/light/light.h"
+#include "adc/adc.h"
 
 void app_main(void)
 {
@@ -32,6 +33,10 @@ void app_main(void)
 
 #if CONFIG_BME280_ENABLED
 	bme280_init();
+#endif
+
+#if CONFIG_MQ136_ENABLED || CONFIG_LIGHT_ENABLED
+	adc_init();
 #endif
 
 #if CONFIG_MQ136_ENABLED
