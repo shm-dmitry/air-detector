@@ -151,6 +151,20 @@ menu "Air-Detector Settings"
    	  		string "MQTT topic for commands to sensor"
    	  		default "/air/mq136/0/command"
    	  endmenu
+   	  
+   	  menu "Light sensor"
+   	  	config LIGHT_ENABLED
+	   	  	boolean "Enable light integraion"
+	   	  	default false
+   	  	
+	   	config LIGHT_ADC_CHANNEL
+	   	  	int "ADC channel connected to sensor"
+	   	  	default 6
+   	  	
+   	  	config LIGHT_TOPIC_DATA
+   	  		string "MQTT topic for sensor data"
+   	  		default "/air/light/0/data"
+   	  endmenu
    endmenu
  endmenu
  

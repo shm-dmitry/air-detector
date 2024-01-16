@@ -14,6 +14,7 @@
 #include "fans/fan/fan.h"
 #include "fans/fan_pwm/fan_pwm.h"
 #include "mq136/mq136.h"
+#include "light/light.h"
 
 void app_main(void)
 {
@@ -37,6 +38,10 @@ void app_main(void)
 	mq136_init();
 #endif
 
+#if CONFIG_LIGHT_ENABLED
+	light_init();
+#endif
+
 #if CONFIG_TOUCHPAD_ENABLED
 	touchpad_init();
 #endif
@@ -51,14 +56,5 @@ void app_main(void)
 
 	while(true) {
 		vTaskDelay(1000 / portTICK_PERIOD_MS);
-	}
-
-	sgp41_data_t result;
-	while(true) {
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
-		esp_err_t res = sgp41_read(&result);
-		if (res == ESP_OK) {
-			ESP_LOGI("main", "sgp41 result: NOXraw = %04X, TVOCraw = %04X; NOX = %d; TVOC = %d", result.nox_raw, result.tvoc_raw, result.nox, result.tvoc);
-		}
 	}
 }
