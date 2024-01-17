@@ -74,7 +74,7 @@ void sgp41_init() {
 	ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, SGP41_EXEC_PERIOD));
 
 #if CONFIG_BME280_ENABLED
-//	sgp41_init_auto_compensation();
+	sgp41_init_auto_compensation();
 #endif
 }
 
