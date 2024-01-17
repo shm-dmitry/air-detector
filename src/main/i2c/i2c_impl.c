@@ -16,7 +16,7 @@
 #define I2C_MUTEX_AWAIT ((TickType_t) 500)
 #define I2C_COMMAND_AWAIT (1000 / portTICK_PERIOD_MS)
 
-#define I2C_DEBUG_OUTPUT true
+#define I2C_DEBUG_OUTPUT false
 
 typedef struct i2c_context_t {
 	uint8_t addr;

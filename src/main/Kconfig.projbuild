@@ -29,6 +29,14 @@ menu "Air-Detector Settings"
 	  config MQTT_TOPICS_PREFIX
 	  	 string "Prefix for all topics"
 	  	 default "/air/0"
+	  	 
+	  config MQTT_HEALTHCHECK_TOPIC
+	  	 string "Topic to send/read healthcheck pings"
+	  	 default "/system/healthcheck"
+	  	 
+	  config MQTT_HEALTHCHECK_ENABLED
+	     boolean "Enable MQTT healthchecks"
+	     default false
    endmenu
    
    menu "LED"

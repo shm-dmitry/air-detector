@@ -3,6 +3,7 @@
 #include "mqtt_client.h"
 #include "nvs_rw.h"
 #include "sdkconfig.h"
+#include "mqtt_healthcheck.h"
 
 #include "../log/log.h"
 
@@ -12,11 +13,15 @@
 typedef struct mqtt_callback_mapping_t {
 	char * topic;
 	mqtt_topic_callback_t function;
+	bool logmessages;
 } mqtt_callback_mapping_t;
 
 mqtt_callback_mapping_t* callbacks = NULL;
 uint8_t callbacks_count = 0;
 esp_mqtt_client_handle_t client;
+
+void mqtt_subscribe_impl(const char * topic, mqtt_topic_callback_t callback, bool logmessages);
+void mqtt_publish_impl(const char * topic, const char * message, bool logmessages);
 
 static void mqtt_event_handler_cb(esp_mqtt_event_handle_t event) {
 	if (callbacks_count == 0 || event == NULL) {
@@ -41,11 +46,15 @@ static void mqtt_event_handler_cb(esp_mqtt_event_handle_t event) {
 			memset(data, 0, event->data_len + 1);
 			memcpy(data, event->data, event->data_len);
 
-			ESP_LOGI(LOG_MQTT, "Received message in topic %s : %s", topic, data);
-
 			for (int i = 0; i<callbacks_count; i++) {
 				if (callbacks[i].topic && strcmp(topic, callbacks[i].topic) == 0) {
+					if (callbacks[i].logmessages) {
+						ESP_LOGI(LOG_MQTT, "Received message in topic %s : %s", topic, data);
+					}
+
 					callbacks[i].function(topic, data);
+
+					break;
 				}
 			}
 
@@ -97,6 +106,14 @@ void mqtt_publish_sync(const char * topic, const char * message) {
 }
 
 void mqtt_publish(const char * topic, const char * message) {
+	mqtt_publish_impl(topic, message, true);
+}
+
+void mqtt_publish_nolog(const char * topic, const char * message) {
+	mqtt_publish_impl(topic, message, false);
+}
+
+void mqtt_publish_impl(const char * topic, const char * message, bool logmessages) {
 	if (client) {
 		char * temp = mqtt_prepend_prefix(topic);
 		if (temp == NULL) {
@@ -104,7 +121,9 @@ void mqtt_publish(const char * topic, const char * message) {
 		}
 
 		if (esp_mqtt_client_enqueue(client, temp, message, 0, 0, 1, 1) >= 0) {
-	    	ESP_LOGI(LOG_MQTT, "MQTT enqueue OK topic = %s, message = %s", temp, message);
+			if (logmessages) {
+				ESP_LOGI(LOG_MQTT, "MQTT enqueue OK topic = %s, message = %s", temp, message);
+			}
 		} else {
 	    	ESP_LOGE(LOG_MQTT, "MQTT enqueue error: topic = %s, message = %s", temp, message);
 		}
@@ -114,10 +133,40 @@ void mqtt_publish(const char * topic, const char * message) {
 	}
 }
 
+void mqtt_subscribe_nolog(const char * topic, mqtt_topic_callback_t callback) {
+	mqtt_subscribe_impl(topic, callback, false);
+}
+
 void mqtt_subscribe(const char * topic, mqtt_topic_callback_t callback) {
+	mqtt_subscribe_impl(topic, callback, true);
+}
+
+void mqtt_subscribe_impl(const char * topic, mqtt_topic_callback_t callback, bool logmessages) {
 	if (callback == NULL) {
 		ESP_LOGW(LOG_MQTT, "Cant subscribe for a topic %s. Callback is NULL.", topic);
 		return;
+	}
+
+	char * prepended_topic = mqtt_prepend_prefix(topic);
+
+	if (callbacks != NULL) {
+		for (uint8_t i = 0; i<callbacks_count; i++) {
+			if (strcmp(callbacks[i].topic, prepended_topic) == 0) {
+				if (callbacks[i].function != callback) {
+					ESP_LOGW(LOG_MQTT, "Duplicated subscription to topic %s. Callback overrided from %p to %p", prepended_topic, callbacks[i].function, callback);
+					callbacks[i].function = callback;
+				} else {
+					ESP_LOGW(LOG_MQTT, "Duplicated subscription to topic %s with same callback", prepended_topic);
+				}
+
+				callbacks[i].logmessages = logmessages;
+
+				free(prepended_topic);
+				prepended_topic = NULL;
+
+				return;
+			}
+		}
 	}
 
 	mqtt_callback_mapping_t* newtable = (mqtt_callback_mapping_t*) malloc(sizeof(mqtt_callback_mapping_t) * (callbacks_count + 1));
@@ -131,8 +180,9 @@ void mqtt_subscribe(const char * topic, mqtt_topic_callback_t callback) {
 
 	callbacks = newtable;
 
-	callbacks[callbacks_count].topic = mqtt_prepend_prefix(topic);
-	callbacks[callbacks_count].function = callback;
+	callbacks[callbacks_count].topic       = prepended_topic;
+	callbacks[callbacks_count].function    = callback;
+	callbacks[callbacks_count].logmessages = logmessages;
 
 	if (callbacks[callbacks_count].topic) {
 		ESP_LOGI(LOG_MQTT, "Client subscribed on topic %s", callbacks[callbacks_count].topic);
@@ -144,6 +194,8 @@ void mqtt_subscribe(const char * topic, mqtt_topic_callback_t callback) {
 }
 
 void mqtt_start() {
+	client = NULL;
+
 	esp_mqtt_client_config_t mqtt_cfg = {
 		.broker.address.uri = CONFIG_MQTT_BROKER_URI,
 		.credentials = {
@@ -151,6 +203,10 @@ void mqtt_start() {
 			.authentication.password = CONFIG_MQTT_BROKER_PASSWORD,
 		},
 	};
+
+#if CONFIG_MQTT_HEALTHCHECK_ENABLED
+	mqtt_healthcheck_init();
+#endif
 
 	client = esp_mqtt_client_init(&mqtt_cfg);
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);

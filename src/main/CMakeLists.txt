@@ -5,6 +5,7 @@ idf_component_register(
     SRCS "main.c"
     	 "cjson/cjson_helper.c"
     	 "common/mqtt.c"
+    	 "common/mqtt_healthcheck.c"
     	 "common/nvs_rw.c"
     	 "common/wifi_nvs.c"
     	 "common/wifi.c"

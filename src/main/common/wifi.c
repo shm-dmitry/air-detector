@@ -50,6 +50,7 @@ void wifi_bg_reconnect_delay_task(void *) {
 	s_retry_num = 0;
 	vTaskDelay(WIFI_BG_RECONNECT_DELAY);
     esp_wifi_connect();
+    vTaskDelete(NULL);
 }
 
 static void event_handler(void* arg, esp_event_base_t event_base,
