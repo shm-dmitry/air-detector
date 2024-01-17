@@ -1,9 +1,10 @@
 #ifndef MAIN_I2C_BME280_BME280_API_H_
 #define MAIN_I2C_BME280_BME280_API_H_
 
-#include "../i2c_impl.h"
-
 // based on https://github.com/finitespace/BME280/blob/master/src/BME280.cpp
+
+#include "stdint.h"
+#include "esp_err.h"
 
 typedef struct bme280_data_t {
 	double temperature; // in °C
@@ -62,7 +63,7 @@ typedef struct bme280_settings_t {
 
 esp_err_t bme280_save_settings(bme280_settings_t * settings);
 
-esp_err_t bme280_init_driver(i2c_handler_t * i2c);
+esp_err_t bme280_init_driver();
 
 esp_err_t bme280_read(bme280_data_t * to);
 

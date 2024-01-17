@@ -1,8 +1,13 @@
 #include "i2c_impl.h"
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+#include "freertos/semphr.h"
+#include "driver/i2c_master.h"
+
 #include "../log/log.h"
 #include "string.h"
-#include "freertos/semphr.h"
 
 #define I2C_DEFAULT_SPEED 100000
 #define I2C_MASTER_TX_BUF_DISABLE 0                           /*!< I2C master doesn't need buffer */
@@ -11,329 +16,145 @@
 #define I2C_MUTEX_AWAIT ((TickType_t) 500)
 #define I2C_COMMAND_AWAIT (1000 / portTICK_PERIOD_MS)
 
-#define I2C_DEBUG_OUTPUT false
+#define I2C_DEBUG_OUTPUT true
 
-bool port_0_registered = false;
-bool port_1_registered = false;
-SemaphoreHandle_t mutex_0 = NULL;
-SemaphoreHandle_t mutex_1 = NULL;
+typedef struct i2c_context_t {
+	uint8_t addr;
+	i2c_master_dev_handle_t dev_handle;
+	uint16_t transfer_timeout_ms;
+} i2c_context_t;
 
-esp_err_t i2c_read(i2c_port_t port, SemaphoreHandle_t mutex, uint8_t addr_id, uint8_t* buffer, uint8_t buffer_size);
+SemaphoreHandle_t i2c_mutex = NULL;
+i2c_master_bus_handle_t i2c_bus_handle = NULL;
 
-esp_err_t i2c_write(i2c_port_t port, SemaphoreHandle_t mutex, uint8_t addr_id, const uint8_t* buffer, uint8_t buffer_size);
+esp_err_t i2c_read(void * i2c_handler_context, uint8_t* buffer, uint8_t buffer_size);
+esp_err_t i2c_write(void * i2c_handler_context, const uint8_t* buffer, uint8_t buffer_size);
+esp_err_t i2c_write_read(void * i2c_handler_context, const uint8_t* write_buffer, uint8_t write_buffer_size, uint8_t* read_buffer, uint8_t read_buffer_size);
 
-esp_err_t i2c_write_read(i2c_port_t port, SemaphoreHandle_t mutex, uint8_t addr_id, const uint8_t* write_buffer, uint8_t write_buffer_size, uint8_t* read_buffer, uint8_t read_buffer_size);
-
-esp_err_t i2c_read_port0(uint8_t addr_id, uint8_t* buffer, uint8_t buffer_size) {
-	return i2c_read(I2C_NUM_0, mutex_0, addr_id, buffer, buffer_size);
-}
-
-esp_err_t i2c_read_port1(uint8_t addr_id, uint8_t* buffer, uint8_t buffer_size) {
-	return i2c_read(I2C_NUM_1, mutex_1, addr_id, buffer, buffer_size);
-}
-
-esp_err_t i2c_write_port0(uint8_t addr_id, const uint8_t* buffer, uint8_t buffer_size) {
-	return i2c_write(I2C_NUM_0, mutex_0, addr_id, buffer, buffer_size);
-}
-
-esp_err_t i2c_write_port1(uint8_t addr_id, const uint8_t* buffer, uint8_t buffer_size) {
-	return i2c_write(I2C_NUM_1, mutex_1, addr_id, buffer, buffer_size);
-}
-
-esp_err_t i2c_write_read_port0(uint8_t addr_id, const uint8_t* write_buffer, uint8_t write_buffer_size, uint8_t* read_buffer, uint8_t read_buffer_size) {
-	return i2c_write_read(I2C_NUM_0, mutex_0, addr_id, write_buffer, write_buffer_size, read_buffer, read_buffer_size);
-}
-
-esp_err_t i2c_write_read_port1(uint8_t addr_id, const uint8_t* write_buffer, uint8_t write_buffer_size, uint8_t* read_buffer, uint8_t read_buffer_size) {
-	return i2c_write_read(I2C_NUM_1, mutex_1, addr_id, write_buffer, write_buffer_size, read_buffer, read_buffer_size);
-}
-
-bool i2c_init_driver(i2c_port_t port, int gpio_sda, int gpio_scl){
-	if (port != I2C_NUM_0 && port != I2C_NUM_1) {
-		return false;
-	}
-
-    i2c_config_t conf = {
-        .mode = I2C_MODE_MASTER,
-        .sda_io_num = gpio_sda,
-        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+void i2c_init_driver(int gpio_sda, int gpio_scl){
+	i2c_master_bus_config_t conf = {
+		.clk_source = I2C_CLK_SRC_DEFAULT,
+		.i2c_port = I2C_NUM_0,
         .scl_io_num = gpio_scl,
-        .scl_pullup_en = GPIO_PULLUP_ENABLE,
-        .master.clk_speed = I2C_DEFAULT_SPEED,
-        // .clk_flags = 0,          /*!< Optional, you can use I2C_SCLK_SRC_FLAG_* flags to choose i2c source clock here. */
-    };
+        .sda_io_num = gpio_sda
+	};
 
-    if (i2c_param_config(port, &conf)) {
-		ESP_LOGE(LOG_I2C, "i2c_param_config failed");
-		return false;
-    }
-    if(i2c_driver_install(port, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0)) {
-		ESP_LOGE(LOG_I2C, "i2c_driver_install failed");
-		return false;
-    }
+	ESP_ERROR_CHECK(i2c_new_master_bus(&conf, &i2c_bus_handle));
 
-    if (port == I2C_NUM_0) {
-    	vSemaphoreCreateBinary(mutex_0);
+	vSemaphoreCreateBinary(i2c_mutex);
+	if (i2c_mutex == NULL) {
+	    ESP_LOGE(LOG_I2C, "Cant init semaphore");
+		return;
+	}
 
-    	if (mutex_0 == NULL) {
-    	    ESP_LOGE(LOG_I2C, "Cant init semaphore#0");
-    		return false;
-    	}
-    } else {
-    	vSemaphoreCreateBinary(mutex_1);
-
-    	if (mutex_1 == NULL) {
-    	    ESP_LOGE(LOG_I2C, "Cant init semaphore#1");
-    		return false;
-    	}
-    }
-
-    ESP_LOGI(LOG_I2C, "I2C port %d with pins sda %d / scl %d initialized", port, gpio_sda, gpio_scl);
-
-    return true;
+    ESP_LOGI(LOG_I2C, "I2C port with pins sda %d / scl %d initialized", gpio_sda, gpio_scl);
 }
 
-
-void i2c_register_port(i2c_port_t port, int gpio_sda, int gpio_scl) {
-	switch (port) {
-		case I2C_NUM_0:
-			if (!port_0_registered) {
-				if (i2c_init_driver(port, gpio_sda, gpio_scl)) {
-					port_0_registered = true;
-				}
-			}
-			break;
-		case I2C_NUM_1:
-			if (!port_1_registered) {
-				if (i2c_init_driver(port, gpio_sda, gpio_scl)) {
-					port_1_registered = true;
-				}
-			}
-			break;
-		default:
-			ESP_LOGE(LOG_I2C, "Unknown I2C port requested: %d", port);
-			break;
+i2c_handler_t * i2c_get_handlers(uint8_t addr, uint16_t transfer_timeout_ms){
+	if (i2c_bus_handle == NULL) {
+		ESP_LOGE(LOG_I2C, "I2C port not initialized yet");
+		return NULL;
 	}
-}
 
-i2c_handler_t * i2c_get_handlers(i2c_port_t port){
-	switch (port) {
-		case I2C_NUM_0:
-			if (!port_0_registered) {
-				ESP_LOGE(LOG_I2C, "I2C port %d not initialized yet", port);
-				return NULL;
-			}
-			break;
-		case I2C_NUM_1:
-			if (!port_1_registered) {
-				ESP_LOGE(LOG_I2C, "I2C port %d not initialized yet", port);
-				return NULL;
-			}
-			break;
-		default:
-			ESP_LOGE(LOG_I2C, "Unknown I2C port requested: %d", port);
-			return NULL;
-	}
+	i2c_device_config_t dev_cfg = {
+	    .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+	    .device_address = addr,
+	    .scl_speed_hz = I2C_DEFAULT_SPEED,
+	};
+	i2c_master_dev_handle_t dev_handle;
+	ESP_ERROR_CHECK(i2c_master_bus_add_device(i2c_bus_handle, &dev_cfg, &dev_handle));
 
     i2c_handler_t * result = (i2c_handler_t*) malloc(sizeof(i2c_handler_t));
     memset(result, 0, sizeof(i2c_handler_t));
 
-    result->read = (port == I2C_NUM_0 ? i2c_read_port0 : i2c_read_port1);
-    result->write = (port == I2C_NUM_0 ? i2c_write_port0 : i2c_write_port1);
-    result->write_read = (port == I2C_NUM_0 ? i2c_write_read_port0 : i2c_write_read_port1);
+    result->read = i2c_read;
+    result->write = i2c_write;
+    result->write_read = i2c_write_read;
+    result->context = malloc(sizeof(i2c_context_t));
+    if (result->context == NULL) {
+    	free(result);
+    	result = NULL;
+    	return NULL;
+    }
+
+    ((i2c_context_t*)result->context)->addr                = addr;
+    ((i2c_context_t*)result->context)->dev_handle          = dev_handle;
+    ((i2c_context_t*)result->context)->transfer_timeout_ms = transfer_timeout_ms;
 
     return result;
 }
 
-esp_err_t i2c_read(i2c_port_t port, SemaphoreHandle_t mutex, uint8_t addr_id, uint8_t* buffer, uint8_t buffer_size) {
+esp_err_t i2c_read(void * i2c_handler_context, uint8_t* buffer, uint8_t buffer_size) {
+	i2c_context_t * context = (i2c_context_t *) i2c_handler_context;
+
 #if I2C_DEBUG_OUTPUT
-	ESP_LOGI(LOG_I2C, "i2c_read send request to port %d / addr %02x", port, addr_id);
+	ESP_LOGI(LOG_I2C, "i2c_read send request to port addr %02x", context->addr);
 #endif
 
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    esp_err_t ret = i2c_master_write_byte(cmd, (addr_id << 1) | I2C_MASTER_READ, true);
-    if (ret) {
-    	ESP_LOGE(LOG_I2C, "i2c_read Cant write address %d to port %d : %d", addr_id, port, ret);
-    	i2c_cmd_link_delete(cmd);
-    	return ret;
-    }
-
-    memset(buffer, 0xAB, buffer_size);
-
-    if (buffer_size > 1) {
-		ret = i2c_master_read(cmd, buffer, buffer_size - 1, I2C_MASTER_ACK);
-		if (ret) {
-			ESP_LOGE(LOG_I2C, "i2c_read Cant read data from port %d addr %02x : %d", port, addr_id, ret);
-			i2c_cmd_link_delete(cmd);
-			return ret;
-		}
-    }
-
-	ret = i2c_master_read(cmd, buffer + buffer_size - 1, 1, I2C_MASTER_NACK);
-	if (ret) {
-		ESP_LOGE(LOG_I2C, "i2c_read Cant read data from port %d addr %02x : %d", port, addr_id, ret);
-		i2c_cmd_link_delete(cmd);
-		return ret;
-	}
-
-    i2c_master_stop(cmd);
-
-	if (xSemaphoreTake(mutex, I2C_MUTEX_AWAIT) != pdTRUE) {
-		ESP_LOGE(LOG_I2C, "i2c_read port %d take mutex timeout", port);
+	if (xSemaphoreTake(i2c_mutex, I2C_MUTEX_AWAIT) != pdTRUE) {
+		ESP_LOGE(LOG_I2C, "i2c_read take mutex timeout for address %02X", context->addr);
 		return ESP_ERR_TIMEOUT;
 	}
 
-    // ecev!
-    ret = i2c_master_cmd_begin(port, cmd, I2C_COMMAND_AWAIT);
-    if (ret) {
-    	ESP_LOGE(LOG_I2C, "i2c_read exec command faileod to port %d addr %02x : %d", port, addr_id, ret);
-    }
+	esp_err_t res = i2c_master_receive(context->dev_handle, buffer, buffer_size, context->transfer_timeout_ms);
 
-    xSemaphoreGive(mutex);
-
-    i2c_cmd_link_delete(cmd);
+    xSemaphoreGive(i2c_mutex);
 
 #if I2C_DEBUG_OUTPUT
-    if (ret == ESP_OK) {
-    	ESP_LOGI(LOG_I2C, "i2c_read received buffer to port %d / addr %02x", port, addr_id);
+    if (res == ESP_OK) {
+    	ESP_LOGI(LOG_I2C, "i2c_read received buffer from addr %02x", context->addr);
 		ESP_LOG_BUFFER_HEXDUMP(LOG_I2C, buffer, buffer_size, ESP_LOG_INFO);
     }
 #endif
 
-    return ret;
+    return res;
 }
 
-esp_err_t i2c_write(i2c_port_t port, SemaphoreHandle_t mutex, uint8_t addr_id, const uint8_t* buffer, uint8_t buffer_size) {
+esp_err_t i2c_write(void * i2c_handler_context, const uint8_t* buffer, uint8_t buffer_size) {
+	i2c_context_t * context = (i2c_context_t *) i2c_handler_context;
+
 #if I2C_DEBUG_OUTPUT
-	ESP_LOGI(LOG_I2C, "i2c_write sending buffer to port %d / addr %02x", port, addr_id);
+	ESP_LOGI(LOG_I2C, "i2c_write sending buffer to addr %02x", context->addr);
+	ESP_LOG_BUFFER_HEXDUMP(LOG_I2C, buffer, buffer_size, ESP_LOG_INFO);
 #endif
 
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    esp_err_t ret = i2c_master_write_byte(cmd, (addr_id << 1) | I2C_MASTER_WRITE, true);
-    if (ret) {
-    	ESP_LOGE(LOG_I2C, "Cant write address %d to port %d : %d", addr_id, port, ret);
-    	i2c_cmd_link_delete(cmd);
-    	return ret;
-    }
-
-    if (buffer && buffer_size) {
-#if I2C_DEBUG_OUTPUT
-    	ESP_LOG_BUFFER_HEXDUMP(LOG_I2C, buffer, buffer_size, ESP_LOG_INFO);
-#endif
-
-    	ret = i2c_master_write(cmd, buffer, buffer_size, true);
-        if (ret) {
-        	ESP_LOGE(LOG_I2C, "Cant send buffer port %d : %d", port, ret);
-        	i2c_cmd_link_delete(cmd);
-        	return ret;
-        }
-    }
-    i2c_master_stop(cmd);
-
-	if (xSemaphoreTake(mutex, I2C_MUTEX_AWAIT) != pdTRUE) {
-		ESP_LOGE(LOG_I2C, "i2c_write port %d addr_id %d take mutex timeout", port, addr_id);
-    	i2c_cmd_link_delete(cmd);
+	if (xSemaphoreTake(i2c_mutex, I2C_MUTEX_AWAIT) != pdTRUE) {
+		ESP_LOGE(LOG_I2C, "i2c_write addr_id %d take mutex timeout", context->addr);
 		return ESP_ERR_TIMEOUT;
 	}
 
-    // ecev!
-    ret = i2c_master_cmd_begin(port, cmd, I2C_COMMAND_AWAIT);
-    if (ret) {
-    	ESP_LOGE(LOG_I2C, "i2c_write exec command failed to port %d addr %02x : %d", port, addr_id, ret);
-    }
+	esp_err_t res = i2c_master_transmit(context->dev_handle, buffer, buffer_size, context->transfer_timeout_ms);
 
-    xSemaphoreGive(mutex);
+    xSemaphoreGive(i2c_mutex);
 
-	i2c_cmd_link_delete(cmd);
-
-    return ret;
+    return res;
 }
 
-esp_err_t i2c_write_read(i2c_port_t port, SemaphoreHandle_t mutex, uint8_t addr_id, const uint8_t* write_buffer, uint8_t write_buffer_size, uint8_t* read_buffer, uint8_t read_buffer_size) {
+esp_err_t i2c_write_read(void * i2c_handler_context, const uint8_t* write_buffer, uint8_t write_buffer_size, uint8_t* read_buffer, uint8_t read_buffer_size) {
+	i2c_context_t * context = (i2c_context_t *) i2c_handler_context;
+
 #if I2C_DEBUG_OUTPUT
-	ESP_LOGI(LOG_I2C, "i2c_write_read send request to port %d / addr %02x", port, addr_id);
+	ESP_LOGI(LOG_I2C, "i2c_write_read send buffer to addr %02x", context->addr);
+	ESP_LOG_BUFFER_HEXDUMP(LOG_I2C, write_buffer, write_buffer_size, ESP_LOG_INFO);
 #endif
 
 	memset(read_buffer, 0xAB, read_buffer_size);
 
-	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-	i2c_master_start(cmd);
-	esp_err_t ret = i2c_master_write_byte(cmd, (addr_id << 1) | I2C_MASTER_WRITE, true);
-	if (ret) {
-		ESP_LOGE(LOG_I2C, "i2c_write_read Cant write address %d to port %d : %d", addr_id, port, ret);
-		i2c_cmd_link_delete(cmd);
-		return ret;
-	}
-
-	if (write_buffer && write_buffer_size) {
-		ret = i2c_master_write(cmd, write_buffer, write_buffer_size, true);
-		if (ret) {
-			ESP_LOGE(LOG_I2C, "i2c_write_read Cant write data to port %d addr %02x : %d", port, addr_id, ret);
-			i2c_cmd_link_delete(cmd);
-			return ret;
-		}
-	}
-
-	i2c_master_start(cmd);
-	ret = i2c_master_write_byte(cmd, (addr_id << 1) | I2C_MASTER_READ, true);
-	if (ret) {
-		ESP_LOGE(LOG_I2C, "i2c_write_read Cant read address %d from port %d : %d", addr_id, port, ret);
-		i2c_cmd_link_delete(cmd);
-		return ret;
-	}
-
-	if (read_buffer_size > 1) {
-		ret = i2c_master_read(cmd, read_buffer, read_buffer_size - 1, I2C_MASTER_ACK);
-		if (ret) {
-			ESP_LOGE(LOG_I2C, "i2c_write_read Cant read data from port %d addr %02x : %d", port, addr_id, ret);
-			i2c_cmd_link_delete(cmd);
-			return ret;
-		}
-	}
-
-	ret = i2c_master_read(cmd, read_buffer + read_buffer_size - 1, 1, I2C_MASTER_NACK);
-	if (ret) {
-		ESP_LOGE(LOG_I2C, "i2c_write_read Cant read data from port %d addr %02x : %d", port, addr_id, ret);
-		i2c_cmd_link_delete(cmd);
-		return ret;
-	}
-
-	i2c_master_stop(cmd);
-
-	if (xSemaphoreTake(mutex, I2C_MUTEX_AWAIT) != pdTRUE) {
-		ESP_LOGE(LOG_I2C, "i2c_write_read port %d take mutex timeout", port);
+	if (xSemaphoreTake(i2c_mutex, I2C_MUTEX_AWAIT) != pdTRUE) {
+		ESP_LOGE(LOG_I2C, "i2c_write_read take mutex timeout for address %d", context->addr);
 		return ESP_ERR_TIMEOUT;
 	}
 
-	// ecev!
-	ret = i2c_master_cmd_begin(port, cmd, I2C_COMMAND_AWAIT);
-	if (ret) {
-		ESP_LOGE(LOG_I2C, "i2c_write_read exec command faileod to port %d addr %02x : %d", port, addr_id, ret);
-	}
+	esp_err_t res = i2c_master_transmit_receive(context->dev_handle, write_buffer, write_buffer_size, read_buffer, read_buffer_size, context->transfer_timeout_ms);
 
-	xSemaphoreGive(mutex);
-
-	i2c_cmd_link_delete(cmd);
+	xSemaphoreGive(i2c_mutex);
 
 #if I2C_DEBUG_OUTPUT
-	if (ret == ESP_OK) {
-		ESP_LOGI(LOG_I2C, "i2c_write_read received buffer to port %d / addr %02x", port, addr_id);
+	if (res == ESP_OK) {
+		ESP_LOGI(LOG_I2C, "i2c_write_read received buffer from addr %02x", context->addr);
 		ESP_LOG_BUFFER_HEXDUMP(LOG_I2C, read_buffer, read_buffer_size, ESP_LOG_INFO);
 	}
 #endif
 
-	return ret;
-}
-
-esp_err_t i2c_general_reset(i2c_handler_t * i2c) {
-	uint8_t buffer = 0x06;
-	esp_err_t res = i2c->write(0x00, &buffer, 1);
-	if (res) {
-		ESP_LOGE(LOG_I2C, "i2c_general_reset error %d", res);
-	} else {
-		ESP_LOGI(LOG_I2C, "i2c_general_reset done.");
-	}
 	return res;
 }

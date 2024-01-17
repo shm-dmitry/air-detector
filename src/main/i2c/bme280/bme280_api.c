@@ -3,12 +3,15 @@
 #include "bme280_math.h"
 #include "../../log/log.h"
 
+#include "../i2c_impl.h"
+
 #include "string.h"
 
 // Thanks to https://github.com/letscontrolit/ESPEasy/blob/mega/src/src/PluginStructs/P028_data_struct.cpp
 // Thanks to https://github.com/finitespace/BME280/blob/master/src/BME280.cpp
 
 #define BME280_I2C_ADDRESS 0x76
+#define BME280_I2C_TIMEOUT 50
 
 #define REGISTER_CTRL_HUM   0xF2
 #define REGISTER_CTRL_MEAS  0xF4
@@ -61,8 +64,12 @@ esp_err_t bme280_read_calibration_table() {
 	return res;
 }
 
-esp_err_t bme280_init_driver(i2c_handler_t * i2c) {
-	bme280_i2c = i2c;
+esp_err_t bme280_init_driver() {
+	bme280_i2c = i2c_get_handlers(BME280_I2C_ADDRESS, BME280_I2C_TIMEOUT);
+	if (bme280_i2c == NULL) {
+		ESP_LOGE(LOG_BME280, "Cant init I2C for address %d", BME280_I2C_ADDRESS);
+		return ESP_ERR_INVALID_STATE;
+	}
 
 	esp_err_t res = bme280_read_calibration_table();
 	if (res) {
@@ -107,7 +114,7 @@ esp_err_t bme280_read(bme280_data_t * to) {
 	return ESP_OK;
 }
 
-esp_err_t bme280_update_settings(i2c_handler_t * i2c) {
+esp_err_t bme280_update_settings() {
 	bme280_settings_t settings = {
 		.tosr = OSR_X1,
 		.hosr = OSR_X1,
@@ -144,7 +151,7 @@ esp_err_t bme280_update_settings(i2c_handler_t * i2c) {
 
 esp_err_t bme280_write_register(uint8_t register_id, uint8_t value) {
 	uint8_t buffer[2] = { register_id, value };
-	esp_err_t res = bme280_i2c->write(BME280_I2C_ADDRESS, buffer, 2);
+	esp_err_t res = bme280_i2c->write(bme280_i2c->context, buffer, 2);
 	if (res) {
 		ESP_LOGE(LOG_BME280, "Cant write value %20x into register %02x: %d", value, register_id, res);
 	}
@@ -153,7 +160,7 @@ esp_err_t bme280_write_register(uint8_t register_id, uint8_t value) {
 }
 
 esp_err_t bme280_read_registers(uint8_t from_register_id, uint8_t * buffer, uint8_t buffer_size) {
-	esp_err_t res = bme280_i2c->write_read(BME280_I2C_ADDRESS, &from_register_id, 1, buffer, buffer_size);
+	esp_err_t res = bme280_i2c->write_read(bme280_i2c->context, &from_register_id, 1, buffer, buffer_size);
 	if (res) {
 		ESP_LOGE(LOG_BME280, "Cant read register %02x: %d", from_register_id, res);
 	}

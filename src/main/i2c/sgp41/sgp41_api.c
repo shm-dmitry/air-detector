@@ -1,13 +1,19 @@
 #include "sgp41_api.h"
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+
 #include "raw2index/sensirion_gas_index_algorithm.h"
 
 #include "../../log/log.h"
 #include "string.h"
+#include "../i2c_impl.h"
 
 #define SGP41_INIT_TASK_STACK_SIZE 4096
 
 #define SGP41_I2C_ADDRESS 0x59
+#define SGP41_I2C_TIMEOUT 50
 
 #define SGP41_INIT_STATUS_NOT_INITIALIZED  0x00
 #define SGP41_INIT_STATUS_INITIALIZING     0x01
@@ -124,8 +130,12 @@ void sgp41_set_temp_humidity(int8_t temperature, uint8_t humidity) {
 	}
 }
 
-esp_err_t sgp41_api_init(i2c_handler_t * i2c) {
-	sgp41_i2c = i2c;
+esp_err_t sgp41_api_init() {
+	sgp41_i2c = i2c_get_handlers(SGP41_I2C_ADDRESS, SGP41_I2C_TIMEOUT);
+	if (sgp41_i2c == NULL) {
+		ESP_LOGE(LOG_SGP41, "Cant init I2C for address %d", SGP41_I2C_ADDRESS);
+		return ESP_ERR_INVALID_STATE;
+	}
 
 	uint16_t buffer[3];
 	memset(buffer, 0, sizeof(uint16_t) * 3);
@@ -144,8 +154,8 @@ esp_err_t sgp41_api_init(i2c_handler_t * i2c) {
 	memset(&sgp41_tvoc, 0, sizeof(GasIndexAlgorithmParams));
 	memset(&sgp41_nox,  0, sizeof(GasIndexAlgorithmParams));
 
-	GasIndexAlgorithm_init(&sgp41_tvoc, GasIndexAlgorithm_ALGORITHM_TYPE_VOC);
-	GasIndexAlgorithm_init(&sgp41_nox,  GasIndexAlgorithm_ALGORITHM_TYPE_NOX);
+	GasIndexAlgorithm_init_with_sampling_interval(&sgp41_tvoc, GasIndexAlgorithm_ALGORITHM_TYPE_VOC, SGP41_SAMPLING_INTERVAL);
+	GasIndexAlgorithm_init_with_sampling_interval(&sgp41_nox,  GasIndexAlgorithm_ALGORITHM_TYPE_NOX, SGP41_SAMPLING_INTERVAL);
 
 	xTaskCreate(sgp41_initializing_task, "sgp41 init task", SGP41_INIT_TASK_STACK_SIZE, NULL, 10, NULL);
 
@@ -192,17 +202,19 @@ esp_err_t sgp41_read(sgp41_data_t * result) {
 	result->tvoc_raw = buffer[0];
 	result->nox_raw = buffer[1];
 
-	int32_t resultvalue = 0;
+	int32_t resultvalue = SGP41_VALUE_NODATA;
 	GasIndexAlgorithm_process(&sgp41_tvoc, result->tvoc_raw, &resultvalue);
-	if (resultvalue > SGP41_VALUE_NODATA || resultvalue <= 0) {
+	if (resultvalue >= SGP41_VALUE_NODATA || resultvalue < 0) {
+		ESP_LOGW(LOG_SGP41, "Bad gas-index for tvoc: %li", resultvalue);
 		resultvalue = SGP41_VALUE_NODATA;
 	}
 
 	result->tvoc = resultvalue;
 
-	resultvalue = 0;
+	resultvalue = SGP41_VALUE_NODATA;
 	GasIndexAlgorithm_process(&sgp41_nox, result->nox_raw, &resultvalue);
-	if (resultvalue > SGP41_VALUE_NODATA || resultvalue <= 0) {
+	if (resultvalue >= SGP41_VALUE_NODATA || resultvalue < 0) {
+		ESP_LOGW(LOG_SGP41, "Bad gas-index for nox: %li", resultvalue);
 		resultvalue = SGP41_VALUE_NODATA;
 	}
 
@@ -228,10 +240,10 @@ esp_err_t sgp41_write_read_buffer(
 
 		memcpy(data, command, 2);
 		memcpy(data + 2, args_buffer, args_buffer_size);
-		res = sgp41_i2c->write(SGP41_I2C_ADDRESS, data, 2 + args_buffer_size);
+		res = sgp41_i2c->write(sgp41_i2c->context, data, 2 + args_buffer_size);
 		free(data);
 	} else {
-		res = sgp41_i2c->write(SGP41_I2C_ADDRESS, command, 2);
+		res = sgp41_i2c->write(sgp41_i2c->context, command, 2);
 	}
 
 	if (res) {
@@ -249,7 +261,7 @@ esp_err_t sgp41_write_read_buffer(
 		return ESP_ERR_NO_MEM;
 	}
 
-	res = sgp41_i2c->read(SGP41_I2C_ADDRESS, temp, buffer_size * 3);
+	res = sgp41_i2c->read(sgp41_i2c->context, temp, buffer_size * 3);
 	if (res) {
 		ESP_LOGE(LOG_SGP41, "Read command %02x%02x failed: %d", command[0], command[1], res);
 		return res;

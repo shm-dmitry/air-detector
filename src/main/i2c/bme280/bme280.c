@@ -35,23 +35,21 @@ void bme280_timer_exec_function(void* arg) {
 }
 
 void bme280_init() {
-	i2c_handler_t * bme280_i2c = i2c_get_handlers(I2C_NUM_0);
-	if (bme280_i2c != NULL) {
-		esp_err_t res = bme280_init_driver(bme280_i2c);
-		if (res != ESP_OK) {
-			ESP_LOGE(LOG_BME280, "BME280 - cant initialize driver. Error %04X", res);
-		} else {
-			ESP_LOGI(LOG_BME280, "BME280 driver initialized");
-		}
-
-		esp_timer_create_args_t periodic_timer_args = {
-				.callback = &bme280_timer_exec_function,
-				/* name is optional, but may help identify the timer when debugging */
-				.name = "bme280 publish value"
-		};
-
-		esp_timer_handle_t periodic_timer;
-		ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
-		ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, BME280_EXEC_PERIOD));
+	esp_err_t res = bme280_init_driver();
+	if (res != ESP_OK) {
+		ESP_LOGE(LOG_BME280, "BME280 - cant initialize driver. Error %04X", res);
+		return;
+	} else {
+		ESP_LOGI(LOG_BME280, "BME280 driver initialized");
 	}
+
+	esp_timer_create_args_t periodic_timer_args = {
+			.callback = &bme280_timer_exec_function,
+			/* name is optional, but may help identify the timer when debugging */
+			.name = "bme280 publish value"
+	};
+
+	esp_timer_handle_t periodic_timer;
+	ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
+	ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, BME280_EXEC_PERIOD));
 }

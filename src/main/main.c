@@ -30,7 +30,7 @@ void app_main(void)
 #endif
 
 #if CONFIG_I2C_ENABLED
-	i2c_register_port(I2C_NUM_0, CONFIG_I2C_GPIO_SDA, CONFIG_I2C_GPIO_SCL);
+	i2c_init_driver(CONFIG_I2C_GPIO_SDA, CONFIG_I2C_GPIO_SCL);
 #endif
 
 #if CONFIG_SGP41_ENABLED
