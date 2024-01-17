@@ -26,7 +26,9 @@ static void mqtt_event_handler_cb(esp_mqtt_event_handle_t event) {
 	switch (event->event_id) {
 	case MQTT_EVENT_CONNECTED:
 		for (int i = 0; i<callbacks_count; i++) {
-			esp_mqtt_client_subscribe_single(event->client, callbacks[i].topic, 0);
+			if (callbacks[i].topic) {
+				esp_mqtt_client_subscribe_single(event->client, callbacks[i].topic, 0);
+			}
 		}
 		break;
 	case MQTT_EVENT_DATA:
@@ -42,7 +44,7 @@ static void mqtt_event_handler_cb(esp_mqtt_event_handle_t event) {
 			ESP_LOGI(LOG_MQTT, "Received message in topic %s : %s", topic, data);
 
 			for (int i = 0; i<callbacks_count; i++) {
-				if (strcmp(topic, callbacks[i].topic) == 0) {
+				if (callbacks[i].topic && strcmp(topic, callbacks[i].topic) == 0) {
 					callbacks[i].function(topic, data);
 				}
 			}
@@ -60,23 +62,55 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 	mqtt_event_handler_cb(event_data);
 }
 
+char * mqtt_prepend_prefix(const char * topic) {
+	if (topic == NULL) {
+		return NULL;
+	}
+
+	char * str = malloc(strlen(CONFIG_MQTT_TOPICS_PREFIX) + strlen(topic) + 1);
+	if (str == NULL) {
+		return NULL;
+	}
+
+	strcpy(str, CONFIG_MQTT_TOPICS_PREFIX);
+	strcpy(str + strlen(CONFIG_MQTT_TOPICS_PREFIX), topic);
+
+	return str;
+}
+
 void mqtt_publish_sync(const char * topic, const char * message) {
 	if (client) {
-		if (esp_mqtt_client_publish(client, topic, message, 0, 0, 1) >= 0) {
-	    	ESP_LOGI(LOG_MQTT, "MQTT publish OK topic = %s, message = %s", topic, message);
+		char * temp = mqtt_prepend_prefix(topic);
+		if (temp == NULL) {
+			return;
+		}
+
+		if (esp_mqtt_client_publish(client, temp, message, 0, 0, 1) >= 0) {
+	    	ESP_LOGI(LOG_MQTT, "MQTT publish OK topic = %s, message = %s", temp, message);
 		} else {
 			mqtt_publish(topic, message);
 		}
+
+		free(temp);
+		temp = NULL;
 	}
 }
 
 void mqtt_publish(const char * topic, const char * message) {
 	if (client) {
-		if (esp_mqtt_client_enqueue(client, topic, message, 0, 0, 1, 1) >= 0) {
-	    	ESP_LOGI(LOG_MQTT, "MQTT enqueue OK topic = %s, message = %s", topic, message);
-		} else {
-	    	ESP_LOGE(LOG_MQTT, "MQTT enqueue error: topic = %s, message = %s", topic, message);
+		char * temp = mqtt_prepend_prefix(topic);
+		if (temp == NULL) {
+			return;
 		}
+
+		if (esp_mqtt_client_enqueue(client, temp, message, 0, 0, 1, 1) >= 0) {
+	    	ESP_LOGI(LOG_MQTT, "MQTT enqueue OK topic = %s, message = %s", temp, message);
+		} else {
+	    	ESP_LOGE(LOG_MQTT, "MQTT enqueue error: topic = %s, message = %s", temp, message);
+		}
+
+		free(temp);
+		temp = NULL;
 	}
 }
 
@@ -97,15 +131,16 @@ void mqtt_subscribe(const char * topic, mqtt_topic_callback_t callback) {
 
 	callbacks = newtable;
 
-	callbacks[callbacks_count].topic = (char *) malloc(strlen(topic) + 1);
-	memset(callbacks[callbacks_count].topic, 0, strlen(topic) + 1);
-	strcpy(callbacks[callbacks_count].topic, topic);
-
+	callbacks[callbacks_count].topic = mqtt_prepend_prefix(topic);
 	callbacks[callbacks_count].function = callback;
 
-	callbacks_count++;
+	if (callbacks[callbacks_count].topic) {
+		ESP_LOGI(LOG_MQTT, "Client subscribed on topic %s", callbacks[callbacks_count].topic);
+	} else {
+		ESP_LOGE(LOG_MQTT, "Cant allocate memory to subscribe on topic %s%s", CONFIG_MQTT_TOPICS_PREFIX, topic);
+	}
 
-	ESP_LOGI(LOG_MQTT, "Client subscribed on topic %s", topic);
+	callbacks_count++;
 }
 
 void mqtt_start() {

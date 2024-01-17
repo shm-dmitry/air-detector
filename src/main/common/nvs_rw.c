@@ -6,7 +6,7 @@
 
 #include "../log/log.h"
 
-#define STORAGE_NAMESPACE "acw"
+#define STORAGE_NAMESPACE "air"
 
 void nvs_init() {
     esp_err_t ret = nvs_flash_init();

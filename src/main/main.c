@@ -16,9 +16,15 @@
 #include "adc/mq136/mq136.h"
 #include "adc/light/light.h"
 #include "adc/adc.h"
+#include "common/wifi.h"
+#include "common/nvs_rw.h"
+#include "common/mqtt.h"
 
 void app_main(void)
 {
+	nvs_init();
+	wifi_init();
+
 #if CONFIG_LED_ENABLED
 	led_init();
 #endif
@@ -59,7 +65,7 @@ void app_main(void)
 	fanpwm_init();
 #endif
 
-	mq136_calibrate(470);
+	mqtt_start();
 
 	while(true) {
 		vTaskDelay(1000 / portTICK_PERIOD_MS);

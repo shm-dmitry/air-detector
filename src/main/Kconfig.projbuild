@@ -10,7 +10,7 @@ menu "Air-Detector Settings"
    	  	
    	  config WIFI_TOPIC
    	  	string "WiFi MQTT Topic to listen Change-SSID command"
-   	  	default "/air/system/0/wifi/command"
+   	  	default "/system/wifi/command"
    endmenu
    
    menu "MQTT Configuration"
@@ -25,22 +25,10 @@ menu "Air-Detector Settings"
       config MQTT_BROKER_PASSWORD
 	     string "Broker user password"
 	     default ""
-
-      config MQTT_INIT_LOGGER_ENABLED
-	     boolean "Enable log init messages to MQTT topic"
-	     default true
-
-      config MQTT_INIT_LOGGER_TOPIC
-	     string "MQTT Init logger topic"
-	     default "/air/system/0/logger/init"
-
-      config MQTT_LIVE_LOGGER_ENABLED
-	     boolean "Enable log live messages to MQTT topic"
-	     default true
-
-      config MQTT_LIVE_LOGGER_TOPIC
-	     string "MQTT live logger topic"
-	     default "/air/system/0/logger/live"
+	     
+	  config MQTT_TOPICS_PREFIX
+	  	 string "Prefix for all topics"
+	  	 default "/air/0"
    endmenu
    
    menu "LED"
@@ -54,7 +42,7 @@ menu "Air-Detector Settings"
   	 
   	  config LED_TOPIC_COMMANDS
   		 string "MQTT topic to listen commands"
-  		 default "/air/led/0/command"
+  		 default "/led/command"
    endmenu
 
    menu "I2C"
@@ -79,7 +67,7 @@ menu "Air-Detector Settings"
    	  	
    	  	config SGP41_TOPIC_DATA
    	  		string "MQTT topic for sensor data"
-   	  		default "/air/sgp41/0/data"
+   	  		default "/sgp41/data"
    	  endmenu
 
    	  menu "BME280"
@@ -89,7 +77,7 @@ menu "Air-Detector Settings"
    	  	
    	  	config BME280_TOPIC_DATA
    	  		string "MQTT topic for sensor data"
-   	  		default "/air/bme280/0/data"
+   	  		default "/bme280/data"
    	  endmenu
    	  
    	  menu "Touchpad"
@@ -103,7 +91,7 @@ menu "Air-Detector Settings"
    	  	
    	  	config TOUCHPAD_TOPIC_DATA
    	  		string "MQTT topic for sensor data"
-   	  		default "/air/touchpad/0/data"
+   	  		default "/touchpad/data"
    	  endmenu
    	  
    	  menu "External FAN"
@@ -117,7 +105,7 @@ menu "Air-Detector Settings"
    	  	
    	  	config FAN_TOPIC_DATA
    	  		string "MQTT topic for sensor data"
-   	  		default "/air/fan/0/command"
+   	  		default "/fan/command"
    	  endmenu
 
    	  menu "Cooler FAN"
@@ -131,7 +119,7 @@ menu "Air-Detector Settings"
    	  	
    	  	config FANPWM_TOPIC_COMMAND
    	  		string "MQTT topic for commands to fan"
-   	  		default "/air/fanpwm/0/command"
+   	  		default "/fanpwm/command"
    	  endmenu
    	  
    	  menu "MQ136 (H2S)"
@@ -145,11 +133,11 @@ menu "Air-Detector Settings"
    	  	
    	  	config MQ136_TOPIC_DATA
    	  		string "MQTT topic for sensor data"
-   	  		default "/air/mq136/0/data"
+   	  		default "/mq136/data"
    	  	
    	  	config MQ136_TOPIC_COMMAND
    	  		string "MQTT topic for commands to sensor"
-   	  		default "/air/mq136/0/command"
+   	  		default "/mq136/command"
    	  endmenu
    	  
    	  menu "Light sensor"
@@ -163,7 +151,7 @@ menu "Air-Detector Settings"
    	  	
    	  	config LIGHT_TOPIC_DATA
    	  		string "MQTT topic for sensor data"
-   	  		default "/air/light/0/data"
+   	  		default "/light/data"
    	  endmenu
    endmenu
  endmenu
