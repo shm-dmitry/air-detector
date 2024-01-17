@@ -39,7 +39,7 @@ void led_commands(const char * topic, const char * data) {
 		}
 
 		char* invptr = NULL;
-		uint32_t rgb = strtol(rgbs, &invptr, 16);
+		uint32_t rgb = strtoul(rgbs, &invptr, 16);
 		if (invptr == NULL || invptr == rgbs + strlen(rgbs)) {
 			led_set_color(rgb);
 		} else {
@@ -127,6 +127,8 @@ void led_init() {
 	xTaskCreate(led_sender_task, "LED sender", LED_SENDER_TASK_STACK_SIZE, NULL, 10, NULL);
 
 	mqtt_subscribe(CONFIG_LED_TOPIC_COMMANDS, led_commands);
+
+	led_set_color(0);
 
     ESP_LOGI(LOG_LED, "LED initialized");
 }
