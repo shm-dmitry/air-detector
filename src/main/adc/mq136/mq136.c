@@ -43,9 +43,6 @@
 		11120.0 / 7.0 \
 	)
 
-#define MQ136_TEMPERATURE_COMPENSATION(t) \
-	-(t)*(t)*(t)*1.0/405000.0 + (t)*(t)*13.0/27000.0 - (t)*37.0/1350.0 + 557.0/405.0
-
 mq136_nvs_data_t mq136_calibration_value = {
 	.a0     = MQ136_CALIBRATION_NOVALUE,
 	.v5x100 = MQ136_CALIBRATION_NOVALUE
@@ -82,24 +79,28 @@ double mq136_adjust_temperature_humidity(double value) {
 
 	// 1st step: found hum-delta step for this temperature.
 	double hum_delta_step_85_to_33 = t*t*t*1.0/8100000.0 - t*t*13.0/540000.0 + t*101.0/54000.0 + (-1043.0/8100.0);
-	// found hum compensation using y = D * (H-33) / (85-33) to gransfer H from current to 65%
+	// found hum compensation using y = D * (H-33) / (85-33) to transfer H from current to 65%
 	double hum_delta = hum_delta_step_85_to_33 * ((65.0 - 33.0) - (h - 33.0)) / (85.0 - 33.0);
 
-	// 2nd step. ok, at this step we have changes rs/ro from hum=33% to hum=85%.
-	// at now we can calculate temperature delta (for hum = 33%)
-	double temp_delta_h33_tcur = MQ136_TEMPERATURE_COMPENSATION(t);
-	double temp_delta_h33_t20 = MQ136_TEMPERATURE_COMPENSATION(20);
+	// 2nd step. ok, at now we can calculate temperature delta (for hum = 33%, hum compensation calculated on step-1)
+	double temp_delta_tcur = -t*t*t*1.0/405000.0 + t*t*13.0/27000.0 - t*37.0/1350.0 + 557.0/405.0;
 
-	// corrent temperature to 20grad
-	double temp_delta = temp_delta_h33_t20 - temp_delta_h33_tcur;
+	// total compensation
+	double compensation = hum_delta + temp_delta_tcur;
 
+	if (compensation < 0.5 || compensation > 2) {
+		ESP_LOGE(LOG_MQ136, "Bad compensations: H = %d, T = %d; rs/ro = %f, hum_delta = %f; temp_delta = %f; total compensation = %f",
+				_h, _t, value, hum_delta, temp_delta_tcur, compensation);
+		return value;
+	} else {
 #if MQ136_DEBUG_COMPENSATIONS
-	ESP_LOGI(LOG_MQ136, "Apply compensations: H = %d, T = %d; rs/ro = %f, hum_delta = %f; temp_delta = %f; result = %f",
-			_h, _t, value, hum_delta, temp_delta, (value + hum_delta + temp_delta));
+		ESP_LOGI(LOG_MQ136, "Apply compensations: H = %d, T = %d; rs/ro = %f, hum_delta = %f; temp_delta = %f; total compensation = %f, result = %f",
+				_h, _t, value, hum_delta, temp_delta_tcur, compensation, (value / compensation));
 #endif
+	}
 
 	// apply compensations
-	return value + hum_delta + temp_delta;
+	return value / compensation;
 }
 
 void mq136_set_temp_humidity(int8_t temperature, uint8_t humidity) {
