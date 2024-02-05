@@ -7,7 +7,7 @@
 #include "string.h"
 #include "touchpad_api.h"
 
-#define TOUCHPAD_ON_KEY_DOWN_COLOR 0xFFFFFF00
+#define TOUCHPAD_ON_KEY_DOWN_COLOR 0xFF000000
 
 void touchpad_callback_func(uint8_t state, uint8_t click_index) {
 	if (state == TOUCHPAD_ON_KEY_DOWN) {

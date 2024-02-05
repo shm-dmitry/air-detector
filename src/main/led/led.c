@@ -20,10 +20,14 @@
 rmt_channel_handle_t tx_channel = NULL;
 rmt_encoder_handle_t led_send_encoder = NULL;
 QueueHandle_t led_send_queue = NULL;
-uint32_t led_override_color_rgbw = LED_OVERRIDE_COLOR_NODATA;
-uint32_t led_color_rgbw          = LED_OVERRIDE_COLOR_NODATA;
+
+uint32_t led_override_nightlight_wrgb = LED_OVERRIDE_COLOR_NODATA;
+uint32_t led_override_color_wrgb      = LED_OVERRIDE_COLOR_NODATA;
+uint32_t led_color_wrgb               = LED_OVERRIDE_COLOR_NODATA;
 
 void led_update_color();
+void led_set_nightlight_color(uint32_t wrgb);
+void led_reset_nightlight_color();
 
 void led_commands(const char * topic, const char * data) {
 	cJSON *root = cJSON_Parse(data);
@@ -44,6 +48,20 @@ void led_commands(const char * topic, const char * data) {
 			led_set_color(rgb);
 		} else {
 			ESP_LOGE(LOG_LED, "Cant parse RGB color %s. Bad char at position %d", rgbs, (int)(invptr - rgbs));
+		}
+	} else if (strcmp(type, "set_night_light_color") == 0) {
+		char * rgbs = cJSON_GetStringValue(cJSON_GetObjectItem(root, "rgb"));
+		if (strlen(rgbs) == 0) {
+			led_reset_nightlight_color();
+			return;
+		}
+
+		char* invptr = NULL;
+		uint32_t rgb = strtoul(rgbs, &invptr, 16);
+		if (invptr == NULL || invptr == rgbs + strlen(rgbs)) {
+			led_set_nightlight_color(rgb);
+		} else {
+			led_reset_nightlight_color();
 		}
 	}
 
@@ -80,18 +98,28 @@ static void led_sender_task(void* arg) {
 	}
 }
 
-void led_set_color(uint32_t rgbw) {
-	led_color_rgbw = rgbw;
+void led_set_color(uint32_t wrgb) {
+	led_color_wrgb = wrgb;
 	led_update_color();
 }
 
-void led_set_override_color(uint32_t rgbw) {
-	led_override_color_rgbw = rgbw;
+void led_set_override_color(uint32_t wrgb) {
+	led_override_color_wrgb = wrgb;
 	led_update_color();
 }
 
 void led_reset_override_color() {
-	led_override_color_rgbw = LED_OVERRIDE_COLOR_NODATA;
+	led_override_color_wrgb = LED_OVERRIDE_COLOR_NODATA;
+	led_update_color();
+}
+
+void led_set_nightlight_color(uint32_t wrgb) {
+	led_override_nightlight_wrgb = wrgb;
+	led_update_color();
+}
+
+void led_reset_nightlight_color() {
+	led_override_nightlight_wrgb = LED_OVERRIDE_COLOR_NODATA;
 	led_update_color();
 }
 
@@ -134,18 +162,21 @@ void led_init() {
 }
 
 void led_update_color() {
-	uint32_t rgbw = (led_override_color_rgbw == LED_OVERRIDE_COLOR_NODATA) ? led_color_rgbw : led_override_color_rgbw;
+	uint32_t wrgb = (led_override_color_wrgb == LED_OVERRIDE_COLOR_NODATA) ? led_color_wrgb : led_override_color_wrgb;
+	if (wrgb == 0 && led_override_nightlight_wrgb > 0) {
+		wrgb = led_override_nightlight_wrgb;
+	}
 
-	uint8_t * temp = (uint8_t *)&rgbw;
+	uint8_t * temp = (uint8_t *)&wrgb;
 
-	uint8_t w = temp[0];
-	uint8_t b = temp[1];
-	uint8_t g = temp[2];
-	uint8_t r = temp[3];
+	uint8_t b = temp[0];
+	uint8_t g = temp[1];
+	uint8_t r = temp[2];
+	uint8_t w = temp[3];
 
 	ESP_LOGI(LOG_LED, "LED: R = %02X; G = %02X; B = %02X; W = %02X", r, g, b, w);
 
-	rgbw = 0;
+	wrgb = 0;
 
 	if (w == 0 && r == g && r == b) {
 		temp[3] = r;
@@ -156,6 +187,6 @@ void led_update_color() {
 		temp[3] = w;
 	}
 
-    xQueueSend(led_send_queue, &rgbw, ( TickType_t ) 10);
+    xQueueSend(led_send_queue, &wrgb, ( TickType_t ) 10);
 }
 
