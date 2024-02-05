@@ -30,6 +30,11 @@ Additional features:
 - Contains touchpad supports multi-click (single click, double click, tripple click etc)
 - Contains RGB led to indicate some internal state you want
 
+3D models
+=======
+Board#1 - in progress
+Board#2 - 3d/box-bathroom*.stl
+
 Project status
 =======
 
