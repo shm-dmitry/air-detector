@@ -4,6 +4,9 @@
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
 #include "esp_timer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
 
 #include "string.h"
 
@@ -36,21 +39,27 @@
 // C = -29040/7
 // D = 11120/7
 #define MQ136_SOLVE_RSRO_TO_PPM(rs_ro) \
-	(uint16_t)( \
+	( \
 		-8000.0 * (rs_ro)*(rs_ro)*(rs_ro) / 7.0 + \
 		26200.0 * (rs_ro)*(rs_ro) / 7.0 + \
 		-29040.0 * (rs_ro) / 7.0 + \
 		11120.0 / 7.0 \
 	)
 
+#define MQ136_CALIBRATE_DELTA_A0 200
+#define MQ136_CALIBRATE_DELTA_AUTORECALIBRATE_A0 50
+#define MQ136_AUTORECALIBRATE_COUNTER_MAX 5
+
 mq136_nvs_data_t mq136_calibration_value = {
 	.a0     = MQ136_CALIBRATION_NOVALUE,
 	.v5x100 = MQ136_CALIBRATION_NOVALUE
 };
-int8_t mq136_compensation_temperature = MQ136_COMPENSATION_NOVALUE;
-uint8_t mq136_compensation_humidity   = MQ136_COMPENSATION_NOVALUE;
+volatile int8_t mq136_compensation_temperature = MQ136_COMPENSATION_NOVALUE;
+volatile uint8_t mq136_compensation_humidity   = MQ136_COMPENSATION_NOVALUE;
+uint8_t mq136_autorecalibrate_counter = 0;
 
 void mq136_init_auto_compensation();
+void mq136_calibrate_execute(int adc, bool full);
 
 // Used a polynomial of the third degree to approxymate graph from datasheet
 // Y = A*x^3 + B*x^2 + C*x + D.
@@ -67,10 +76,11 @@ void mq136_init_auto_compensation();
 // B = -13/540000
 // C = 101/54000
 // D = -1043/8100
-double mq136_adjust_temperature_humidity(double value) {
+double mq136_adjust_temperature_humidity(double value, bool * success) {
 	int8_t _t = mq136_compensation_temperature;
 	uint8_t _h = mq136_compensation_humidity;
 	if (_t == MQ136_COMPENSATION_NOVALUE || _h == MQ136_COMPENSATION_NOVALUE) {
+		*success = false;
 		return value;
 	}
 
@@ -91,6 +101,7 @@ double mq136_adjust_temperature_humidity(double value) {
 	if (compensation < 0.5 || compensation > 2) {
 		ESP_LOGE(LOG_MQ136, "Bad compensations: H = %d, T = %d; rs/ro = %f, hum_delta = %f; temp_delta = %f; total compensation = %f",
 				_h, _t, value, hum_delta, temp_delta_tcur, compensation);
+		*success = false;
 		return value;
 	} else {
 #if MQ136_DEBUG_COMPENSATIONS
@@ -99,6 +110,7 @@ double mq136_adjust_temperature_humidity(double value) {
 #endif
 	}
 
+	*success = true;
 	// apply compensations
 	return value / compensation;
 }
@@ -126,7 +138,7 @@ void mq136_set_temp_humidity(int8_t temperature, uint8_t humidity) {
 
 // Rs/Ro = (Ao / As) * (V*Am - As*3.3) / (V*Am - Ao*3.3)
 
-uint16_t mq136_adc_to_ppm(int adc) {
+uint16_t mq136_adc_to_ppm(int adc, bool autocompensation) {
 	if (mq136_calibration_value.a0 == MQ136_CALIBRATION_NOVALUE     || mq136_calibration_value.a0 == 0 ||
 		mq136_calibration_value.v5x100 == MQ136_CALIBRATION_NOVALUE || mq136_calibration_value.v5x100 == 0) {
 		ESP_LOGW(LOG_MQ136, "No calibration. ADC = %d", adc);
@@ -152,19 +164,33 @@ uint16_t mq136_adc_to_ppm(int adc) {
 	ESP_LOGI(LOG_MQ136, "Before compensations: ADC = %d -> rs/ro = %f", adc, rs_ro);
 #endif
 
-	rs_ro = mq136_adjust_temperature_humidity(rs_ro);
+	bool adjust_success = false;
+	rs_ro = mq136_adjust_temperature_humidity(rs_ro, &adjust_success);
 
 #if MQ136_DEBUG_CALCULATION
 	ESP_LOGI(LOG_MQ136, "After compensations: ADC = %d -> rs/ro = %f", adc, rs_ro);
 #endif
 
-	uint16_t result = MQ136_SOLVE_RSRO_TO_PPM(rs_ro);
+	double _result = MQ136_SOLVE_RSRO_TO_PPM(rs_ro);
+	if (adjust_success && autocompensation) {
+		if (_result < 0) {
+			if (mq136_autorecalibrate_counter < MQ136_AUTORECALIBRATE_COUNTER_MAX) {
+				mq136_autorecalibrate_counter++;
+			} else {
+				ESP_LOGW(LOG_MQ136, "rsro->ppm : result=%f. Start fast auto-recalibration to find zero.", _result);
+				mq136_calibrate_execute(adc, false);
+				mq136_autorecalibrate_counter = 0;
+			}
+		} else {
+			mq136_autorecalibrate_counter = 0;
+		}
+	}
 
 #if MQ136_DEBUG_CALCULATION
-	ESP_LOGI(LOG_MQ136, "Result: %d ppm for ADC = %d and rs/ro = %f", result, adc, rs_ro);
+	ESP_LOGI(LOG_MQ136, "Result: %f ppm for ADC = %d and rs/ro = %f", _result, adc, rs_ro);
 #endif
 
-	return result;
+	return _result < 0 ? 0 : (uint16_t)_result;
 }
 
 uint16_t mq136_read_value() {
@@ -175,18 +201,68 @@ uint16_t mq136_read_value() {
 		return MQ136_NOVALUE;
 	}
 
-	return mq136_adc_to_ppm(value);
+	return mq136_adc_to_ppm(value, true);
+}
+
+void mq136_calibrate_execute(int value, bool full) {
+	uint16_t delta = full ? MQ136_CALIBRATE_DELTA_A0 : MQ136_CALIBRATE_DELTA_AUTORECALIBRATE_A0;
+
+	uint16_t min_a0 = (value < delta ? 0 : value - delta);
+	uint16_t max_a0 = (((uint32_t) value + (uint32_t)delta) > (uint32_t)0xFFFF ? 0xFFFF : value + delta);
+
+	uint16_t min_ppm_value = 0xFFFF;
+	uint16_t min_ppm_value_a0 = value;
+
+	for (uint16_t i = min_a0; i<max_a0; i++) {
+		if (i % 50 == 0) {
+			vTaskDelay(1);
+		}
+
+		mq136_calibration_value.a0 = i;
+
+		uint16_t ppm = mq136_adc_to_ppm(value, false);
+		if (ppm == MQ136_NOVALUE) {
+			mq136_calibration_value.a0 = value;
+			ESP_LOGE(LOG_MQ136, "Calibration - error in mq136_adc_to_ppm");
+			return;
+		}
+
+		if (ppm == 0) {
+			ESP_LOGI(LOG_MQ136, "Calibration - compensation applied. A0: %d -> %d", value, i);
+			return;
+		}
+
+		if (ppm < min_ppm_value) {
+			min_ppm_value = ppm;
+			min_ppm_value_a0 = i;
+		}
+	}
+
+	ESP_LOGW(LOG_MQ136, "Calibration - compensation applied partically. PPM = %d; A0: %d -> %d", min_ppm_value, value, min_ppm_value_a0);
+	mq136_calibration_value.a0 = min_ppm_value_a0;
 }
 
 void mq136_calibrate(uint16_t v5x100) {
 	int value = 0;
 	esp_err_t res = adc_oneshot_read(adc_get_channel(), (adc_channel_t) CONFIG_MQ136_ADC_CHANNEL, &value);
 	if (res != ESP_OK) {
+		ESP_LOGE(LOG_MQ136, "Cant read ADC value, err=%04X", res);
 		return;
 	}
 
 	mq136_calibration_value.a0 = value;
 	mq136_calibration_value.v5x100 = v5x100;
+
+	// check - Have I data for a humidity and temperatore calibration?
+	int8_t _t = mq136_compensation_temperature;
+	uint8_t _h = mq136_compensation_humidity;
+	if (_t == MQ136_COMPENSATION_NOVALUE || _h == MQ136_COMPENSATION_NOVALUE) {
+		mq136_nws_write(&mq136_calibration_value);
+		ESP_LOGW(LOG_MQ136, "No humidity-temperature data for compensaction.");
+		return;
+	}
+
+	mq136_calibrate_execute(value, true);
 	mq136_nws_write(&mq136_calibration_value);
 }
 
@@ -280,4 +356,6 @@ void mq136_init_auto_compensation() {
 	esp_timer_handle_t periodic_timer;
 	ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
 	ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, MQ136_APPLY_COMPENSATION_PERIOD));
+
+	mq136_timer_apply_correction_function(NULL);
 }

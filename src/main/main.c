@@ -33,12 +33,12 @@ void app_main(void)
 	i2c_init_driver(CONFIG_I2C_GPIO_SDA, CONFIG_I2C_GPIO_SCL);
 #endif
 
-#if CONFIG_SGP41_ENABLED
-	sgp41_init();
-#endif
-
 #if CONFIG_BME280_ENABLED
 	bme280_init();
+#endif
+
+#if CONFIG_SGP41_ENABLED
+	sgp41_init();
 #endif
 
 #if CONFIG_MQ136_ENABLED || CONFIG_LIGHT_ENABLED

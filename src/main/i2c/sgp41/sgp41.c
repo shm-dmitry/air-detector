@@ -64,9 +64,9 @@ void sgp41_init() {
 	}
 
 	esp_timer_create_args_t periodic_timer_args = {
-			.callback = &sgp41_timer_exec_function,
-			/* name is optional, but may help identify the timer when debugging */
-			.name = "sgp41 publish value"
+		.callback = &sgp41_timer_exec_function,
+		/* name is optional, but may help identify the timer when debugging */
+		.name = "sgp41 publish value"
 	};
 
 	esp_timer_handle_t periodic_timer;
@@ -80,12 +80,14 @@ void sgp41_init() {
 
 void sgp41_init_auto_compensation() {
 	esp_timer_create_args_t periodic_timer_args = {
-			.callback = &sgp41_timer_apply_correction_function,
-			/* name is optional, but may help identify the timer when debugging */
-			.name = "Humidity auto compensation from BME280 for SGP41"
+		.callback = &sgp41_timer_apply_correction_function,
+		/* name is optional, but may help identify the timer when debugging */
+		.name = "Humidity auto compensation from BME280 for SGP41"
 	};
 
 	esp_timer_handle_t periodic_timer;
 	ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
 	ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, SGP41_APPLY_COMPENSATION_PERIOD));
+
+	sgp41_timer_apply_correction_function(NULL);
 }
