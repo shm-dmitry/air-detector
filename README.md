@@ -36,10 +36,15 @@ Additional features:
 - Board#1 - in progress
 - Board#2 - 3d/box-bathroom*.stl
 
+Home assistant files
+=======
+- Board#1 - in progress
+- Board#2 - hass/board2
+
 Project status
 =======
 
-- Board#2 - tested, assembled, and ready to install
+- Board#2 - Done
 - Board#1 - In progress
 
 Photos
