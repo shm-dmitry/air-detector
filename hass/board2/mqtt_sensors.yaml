@@ -1,0 +1,43 @@
+     - state_topic: "/air/0/bme280/data"
+       name: "hws_room2_temperature"
+       value_template: "{{value_json.temperature | float}}"
+       unit_of_measurement: "°C"
+
+     - state_topic: "/air/0/bme280/data"
+       name: "hws_room2_pressure"
+       value_template: "{{value_json.pressure | int}}"
+       unit_of_measurement: "Pa"
+
+     - state_topic: "/air/0/bme280/data"
+       name: "hws_room2_humidity"
+       unique_id: "sensor.hws_room2_himidity"
+       value_template: "{{value_json.humidity | float}}"
+       unit_of_measurement: "%"
+
+     - state_topic: "/air/0/sgp41/data"
+       name: "hws_room2_tvoc"
+       value_template: "{{ value_json.tvoc | int - 100 if value_json.tvoc | int > 100 else 0 }}"
+       unit_of_measurement: "ppb"
+
+     - state_topic: "/air/0/sgp41/data"
+       name: "hws_room2_nox"
+       value_template: "{{value_json.nox | int}}"
+       unit_of_measurement: "ppb"
+
+     - state_topic: "/air/0/mq136/data"
+       name: "hws_room2_h2s"
+       value_template: "{{value_json.h2s | int}}"
+       unit_of_measurement: "ppm"
+
+     - state_topic: "/air/0/light/data"
+       name: "hws_room2_light"
+       value_template: "{%if value_json.light | int > 40 %}ON{% else %}OFF{% endif %}"
+
+     - state_topic: "/air/0/light/data"
+       name: "hws_room2_light_raw"
+       value_template: "{{value_json.light | int}}"
+       unit_of_measurement: "%"
+
+     - state_topic: "/air/0/touchpad/data"
+       name: "hws_room2_touchpad"
+       value_template: "{%if value_json.value == 'idle' %}ONCLICK{% endif %}"

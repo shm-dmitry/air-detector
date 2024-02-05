@@ -1,0 +1,6 @@
+    room2_auto_status:
+         friendly_name: "room2_auto_status"
+         initial_value: 0
+    room2_auto_allowed:
+         friendly_name: "room2_auto_allowed"
+         initial_value: 1

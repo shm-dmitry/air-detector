@@ -1,0 +1,53 @@
+        - type: vertical-stack
+          title: "Ванная"
+          cards:
+            - type: horizontal-stack
+              cards:
+
+                - type: gauge
+                  entity: sensor.hws_room2_temperature
+                  min: 10
+                  max: 50
+                  name: "Температура"
+
+                - type: gauge
+                  entity: sensor.hws_room2_humidity
+                  min: 0
+                  max: 100
+                  name: "Влажность"
+
+                - type: gauge
+                  entity: sensor.hws_room2_tvoc
+                  min: 0
+                  max: 2000
+                  name: "TVOC"
+                  severity:
+                      green: 0
+                      yellow: 400
+                      red: 700
+
+                - type: gauge
+                  entity: sensor.hws_room2_h2s
+                  min: 0
+                  max: 2000
+                  name: "H2S"
+                  severity:
+                      green: 0
+                      yellow: 20
+                      red: 50
+            - type: horizontal-stack
+              cards:
+                - type: entity
+                  name: "Свет"
+                  entity: sensor.hws_room2_light
+
+                - type: button
+                  name: "Вентиляция"
+                  entity: switch.hws_room2_fan_ui
+                  tap_action:
+                    action: toggle
+                - type: button
+                  name: "Авто"
+                  entity: switch.hws_room2_auto_sw
+                  tap_action:
+                    action: toggle

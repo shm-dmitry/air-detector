@@ -1,0 +1,72 @@
+ - platform: template
+   switches:
+      hws_room2_fan_ui:
+          value_template: "{{ is_state('switch.hws_room2_fan', 'on') }}"
+          turn_on:
+            - service: switch.turn_on
+              target:
+                 entity_id: switch.hws_room2_fan
+            - service: var.set
+              data:
+                 entity_id: var.room2_auto_status
+                 value_template: "{{ as_timestamp(now()) }}"
+            - service: timer.cancel
+              data:
+                 entity_id: timer.room2_manual_reset
+            - service: timer.start
+              data:
+                 entity_id: timer.room2_manual_reset
+            - service: mqtt.publish
+              data:
+                 topic: "/air/0/led/command"
+                 payload: "{\"type\": \"set_color\", \"rgb\": \"00FF00\"}"
+          turn_off:
+            - service: switch.turn_off
+              target:
+                 entity_id: switch.hws_room2_fan
+            - service: var.set
+              data:
+                 entity_id: var.room2_auto_status
+                 value_template: "{{ as_timestamp(now()) }}"
+            - service: timer.cancel
+              data:
+                 entity_id: timer.room2_manual_reset
+            - service: timer.start
+              data:
+                 entity_id: timer.room2_manual_reset
+            - service: mqtt.publish
+              data:
+                 topic: "/air/0/led/command"
+                 payload: "{\"type\": \"set_color\", \"rgb\": \"FF0000\"}"
+          icon_template: "{% if (states('var.room2_auto_status') | int) == 0 %}mdi:fan-chevron-down{% else %}mdi:fan{% endif %}"
+
+      hws_room2_auto_sw:
+          value_template: "{{ (states('var.room2_auto_status') | int) + (states('var.room2_auto_allowed') | int) == 1 }}"
+          turn_on:
+            - service: timer.cancel
+              data:
+                 entity_id: timer.room2_manual_reset
+            - service: mqtt.publish
+              data:
+                 topic: "/air/0/led/command"
+                 payload: "{\"type\": \"set_color\", \"rgb\": \"000000\"}"
+            - service: switch.turn_off
+              target:
+                 entity_id: switch.hws_room2_fan
+            - service: var.set
+              data:
+                 entity_id: var.room2_auto_allowed
+                 value: 1
+            - service: var.set
+              data:
+                 entity_id: var.room2_auto_status
+                 value: 0
+          turn_off:
+            - service: switch.turn_on
+              target:
+                 entity_id: switch.hws_room2_fan_ui
+            - service: var.set
+              data:
+                 entity_id: var.room2_auto_allowed
+                 value: 0
+          icon_template: "{% if (states('var.room2_auto_allowed') | int) == 0 %}mdi:flash-off{% else %}mdi:flash{% endif %}"

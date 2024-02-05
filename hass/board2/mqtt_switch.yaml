@@ -1,0 +1,4 @@
+      - name: hws_room2_fan
+        command_topic: "/air/0/fan/command"
+        payload_off: "{\"state\": false}"
+        payload_on:  "{\"state\": true}"

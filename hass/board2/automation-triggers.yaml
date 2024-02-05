@@ -1,0 +1,233 @@
+ -  id: room2_auto_touchpad_onclick
+    alias: room2_auto_touchpad_onclick
+    trigger:
+      - platform: mqtt
+        topic: "/air/0/touchpad/data"
+        value_template: "{{ value_json.value }}:{{ value_json.click }}"
+        payload: "on_click:1"
+    action:
+     - service: timer.cancel
+       target:
+          entity_id: tiumer.room2_manual_reset
+     - service: mqtt.publish
+       data:
+          topic: "/air/0/led/command"
+          payload: "{\"type\": \"set_color\", \"rgb\": \"000000\"}"
+     - service: switch.turn_off
+       target:
+          entity_id: switch.hws_room2_fan_ui
+     - service: var.set
+       data:
+          entity_id: var.room2_auto_allowed
+          value: 1
+     - service: var.set
+       data:
+          entity_id: var.room2_auto_status
+          value: 0
+
+ -  id: room2_auto_touchpad_ondoubleclick
+    alias: room2_auto_touchpad_ondoubleclick
+    trigger:
+      - platform: mqtt
+        topic: "/air/0/touchpad/data"
+        value_template: "{{ value_json.value }}:{{ value_json.click }}"
+        payload: "on_click:2"
+    action:
+     - service: switch.toggle
+       entity_id: switch.hws_room2_fan_ui
+
+ - id: room2_manual_reset_trigger
+   alias: room2_manual_reset_trigger
+   trigger:
+     - platform: event
+       event_type: timer.finished
+       event_data:
+          entity_id: timer.room2_manual_reset
+   condition: "{{ states('var.room2_auto_status') | int > 0 }}"
+   action:
+     - service: mqtt.publish
+       data:
+          topic: "/air/0/led/command"
+          payload: "{\"type\": \"set_color\", \"rgb\": \"000000\"}"
+     - service: switch.turn_off
+       target:
+          entity_id: switch.hws_room2_fan_ui
+     - service: var.set
+       data:
+          entity_id: var.room2_auto_status
+          value: 0
+
+ - id: room2_auto_turn_on
+   alias: room2_auto_turn_on
+   trigger:
+     - platform: state
+       entity_id:
+         - sensor.hws_room2_tvoc
+         - sensor.hws_room2_light
+         - sensor.hws_room2_humidity
+         - var.room2_auto_status
+         - var.room2_auto_allowed
+   condition:
+       - condition: and
+         conditions:
+             - condition: time
+               after: "09:00:00"
+               before: "23:00:00"
+             - condition: template
+               value_template: "{{ (states('var.room2_auto_status') | int) == 0 }}"
+             - condition: template
+               value_template: "{{ (states('var.room2_auto_allowed') | int) == 1 }}"
+             - condition: template
+               value_template: "{{ is_state('switch.hws_room2_fan', 'off') }}"
+             - condition: or
+               conditions:
+                    - condition: template
+                      value_template: "{{ (states('sensor.hws_room2_tvoc') | int) > 300 }}"
+                    - condition: template
+                      value_template: "{{ (states('sensor.hws_room2_humidity') | int) > 80 }}"
+                    - condition: and
+                      conditions:
+                         - condition: template
+                           value_template: "{{ (states('sensor.hws_room2_humidity') | int) > 60 }}"
+                         - condition: template
+                           value_template: "{{ states('sensor.hws_room2_light') == 'OFF' }}"
+   action:
+     - service: switch.turn_on
+       entity_id: switch.hws_room2_fan
+     - service: mqtt.publish
+       data:
+          topic: "/air/0/led/command"
+          payload: "{\"type\": \"set_color\", \"rgb\": \"0000FF\"}"
+
+ - id: room2_auto_turn_off
+   alias: room2_auto_turn_off
+   trigger:
+     - platform: state
+       entity_id:
+         - sensor.hws_room2_tvoc
+         - sensor.hws_room2_light
+         - sensor.hws_room2_humidity
+         - var.room2_auto_status
+         - var.room2_auto_allowed
+   condition:
+       - condition: and
+         conditions:
+             - condition: template
+               value_template: "{{ (states('var.room2_auto_status') | int) == 0 }}"
+             - condition: template
+               value_template: "{{ (states('var.room2_auto_allowed') | int) == 1 }}"
+             - condition: template
+               value_template: "{{ is_state('switch.hws_room2_fan', 'on') }}"
+             - condition: template
+               value_template: "{{ (states('sensor.hws_room2_tvoc') | int) < 200 }}"
+             - condition: or
+               conditions:
+                    - condition: template
+                      value_template: "{{ (states('sensor.hws_room2_humidity') | int) < 60 }}"
+                    - condition: and
+                      conditions:
+                         - condition: template
+                           value_template: "{{ (states('sensor.hws_room2_humidity') | int) > 60 }}"
+                         - condition: template
+                           value_template: "{{ (states('sensor.hws_room2_humidity') | int) < 80 }}"
+                         - condition: template
+                           value_template: "{{ states('sensor.hws_room2_light') == 'ON' }}"
+   action:
+     - service: switch.turn_off
+       entity_id: switch.hws_room2_fan
+     - service: mqtt.publish
+       data:
+          topic: "/air/0/led/command"
+          payload: "{\"type\": \"set_color\", \"rgb\": \"000000\"}"
+
+ - id: room2_auto_ready_to_turn_on
+   alias: room2_auto_ready_to_turn_on
+   trigger:
+     - platform: state
+       entity_id:
+         - sensor.hws_room2_tvoc
+         - sensor.hws_room2_light
+         - sensor.hws_room2_humidity
+         - var.room2_auto_status
+         - var.room2_auto_allowed
+   condition:
+       - condition: and
+         conditions:
+             - condition: template
+               value_template: "{{ (states('var.room2_auto_status') | int) == 0 }}"
+             - condition: template
+               value_template: "{{ (states('var.room2_auto_allowed') | int) == 1 }}"
+             - condition: template
+               value_template: "{{ is_state('switch.hws_room2_fan', 'off') }}"
+             - condition: or
+               conditions:
+                    - condition: and
+                      conditions:
+                        - condition: template
+                          value_template: "{{ (states('sensor.hws_room2_tvoc') | int) >= 200 }}"
+                        - condition: template
+                          value_template: "{{ (states('sensor.hws_room2_tvoc') | int) < 300 }}"
+                    - condition: and
+                      conditions:
+                         - condition: template
+                           value_template: "{{ (states('sensor.hws_room2_humidity') | int) >= 60 }}"
+                         - condition: template
+                           value_template: "{{ (states('sensor.hws_room2_humidity') | int) < 80 }}"
+                         - condition: template
+                           value_template: "{{ states('sensor.hws_room2_light') == 'ON' }}"
+   action:
+     - service: mqtt.publish
+       data:
+          topic: "/air/0/led/command"
+          payload: "{\"type\": \"set_color\", \"rgb\": \"00FFFF\"}"
+
+ - id: room2_auto_stop_ready_to_turn_on_off
+   alias: room2_auto_stop_ready_to_turn_on_off
+   trigger:
+     - platform: state
+       entity_id:
+         - sensor.hws_room2_tvoc
+         - sensor.hws_room2_light
+         - sensor.hws_room2_humidity
+         - var.room2_auto_status
+         - var.room2_auto_allowed
+   condition:
+       - condition: and
+         conditions:
+             - condition: template
+               value_template: "{{ (states('var.room2_auto_status') | int) == 0 }}"
+             - condition: template
+               value_template: "{{ (states('var.room2_auto_allowed') | int) == 1 }}"
+             - condition: template
+               value_template: "{{ is_state('switch.hws_room2_fan', 'off') }}"
+             - condition: template
+               value_template: "{{ (states('sensor.hws_room2_tvoc') | int) < 300 }}"
+             - condition: template
+               value_template: "{{ (states('sensor.hws_room2_humidity') | int) < 60 }}"
+   action:
+     - service: mqtt.publish
+       data:
+          topic: "/air/0/led/command"
+          payload: "{\"type\": \"set_color\", \"rgb\": \"000000\"}"
+
+ - id: room2_auto_nightlight_on
+   alias: room2_auto_nightlight_on
+   trigger:
+     - platform: time
+       at: "23:30"
+   action:
+     - service: mqtt.publish
+       data:
+          topic: "/air/0/led/command"
+          payload: "{\"type\": \"set_night_light_color\", \"rgb\": \"0F0000\"}"
+
+ - id: room2_auto_nightlight_off
+   alias: room2_auto_nightlight_off
+   trigger:
+     - platform: time
+       at: "08:00"
+   action:
+     - service: mqtt.publish
+       data:
+          topic: "/air/0/led/command"
+          payload: "{\"type\": \"set_night_light_color\", \"rgb\": \"000000\"}"
