@@ -11,12 +11,11 @@ typedef struct {
     rmt_encoder_t base;
     rmt_encoder_t *copy_encoder;
     rmt_encoder_t *bytes_encoder;
-    rmt_symbol_word_t ending_symbol;
+    rmt_symbol_word_t reset_chanel_symbol;
     uint8_t bytes_sent;
 } rmt_fm_encoder_t;
 
-static size_t IRAM_ATTR led_isr_rmt_encode(rmt_encoder_t *encoder, rmt_channel_handle_t channel, const void *primary_data, size_t data_size, rmt_encode_state_t *ret_state)
-{
+static size_t IRAM_ATTR led_isr_rmt_encode(rmt_encoder_t *encoder, rmt_channel_handle_t channel, const void *primary_data, size_t data_size, rmt_encode_state_t *ret_state) {
 	rmt_fm_encoder_t *encoder_data = __containerof(encoder, rmt_fm_encoder_t, base);
     rmt_encode_state_t session_state = RMT_ENCODING_RESET;
     rmt_encode_state_t state = RMT_ENCODING_RESET;
@@ -24,14 +23,11 @@ static size_t IRAM_ATTR led_isr_rmt_encode(rmt_encoder_t *encoder, rmt_channel_h
     rmt_encoder_handle_t bytes_encoder = encoder_data->bytes_encoder;
     rmt_encoder_handle_t copy_encoder = encoder_data->copy_encoder;
 
-    if (encoder_data->bytes_sent < data_size) {
-		encoded_symbols += bytes_encoder->encode(bytes_encoder,
-												 channel,
-												 primary_data,
-												 data_size,
-												 &session_state);
+    if (encoder_data->bytes_sent == 0) {
+		encoded_symbols += copy_encoder->encode(copy_encoder, channel, &encoder_data->reset_chanel_symbol,
+												sizeof(rmt_symbol_word_t), &session_state);
 		if (session_state & RMT_ENCODING_COMPLETE) {
-			encoder_data->bytes_sent = data_size;
+			encoder_data->bytes_sent = 1;
 		}
 		if (session_state & RMT_ENCODING_MEM_FULL) {
 			state |= RMT_ENCODING_MEM_FULL;
@@ -39,7 +35,22 @@ static size_t IRAM_ATTR led_isr_rmt_encode(rmt_encoder_t *encoder, rmt_channel_h
 		}
     }
 
-    encoded_symbols += copy_encoder->encode(copy_encoder, channel, &encoder_data->ending_symbol,
+    if (encoder_data->bytes_sent < data_size + 1) {
+		encoded_symbols += bytes_encoder->encode(bytes_encoder,
+												 channel,
+												 primary_data,
+												 data_size,
+												 &session_state);
+		if (session_state & RMT_ENCODING_COMPLETE) {
+			encoder_data->bytes_sent += data_size;
+		}
+		if (session_state & RMT_ENCODING_MEM_FULL) {
+			state |= RMT_ENCODING_MEM_FULL;
+			goto out;
+		}
+    }
+
+    encoded_symbols += copy_encoder->encode(copy_encoder, channel, &encoder_data->reset_chanel_symbol,
                                             sizeof(rmt_symbol_word_t), &session_state);
     if (session_state & RMT_ENCODING_COMPLETE) {
         encoder_data->bytes_sent = 0;
@@ -80,20 +91,26 @@ void rmt_new_ir_nec_encoder(rmt_encoder_handle_t *ret_encoder) {
     fm_encoder_iface->base.del = led_isr_rmt_del_encoder;
     fm_encoder_iface->base.reset = led_isr_rmt_reset_encoder;
 
-    fm_encoder_iface->ending_symbol = (rmt_symbol_word_t) {
+    // "reset" == LOW>80uS -> I use 90uS of LOW level to ensure command correctly read
+    fm_encoder_iface->reset_chanel_symbol = (rmt_symbol_word_t) {
 		.level0 = 0,
-		.duration0 = 250,
+		.duration0 = 450,
 		.level1 = 0,
-		.duration1 = 250
+		.duration1 = 450
     };
 
+    // I have tolerance ±0.15uS, but I have min signal time 1.25±0.6uS.
+    // So I increase time of each symbol part in tolerance limit to ensure
+    // I use valid min signal time
     rmt_bytes_encoder_config_t bytes_encoder_config = {
+    	// bit0: [LOW: 0.3uS; HIGH 0.9uS].
         .bit0 = {
             .level0 = 1,
             .duration0 = 4,
             .level1 = 0,
-            .duration1 = 10,
+            .duration1 = 9,
         },
+    	// bit1: [LOW: 0.6uS; HIGH 0.6uS].
         .bit1 = {
             .level0 = 1,
             .duration0 = 7,

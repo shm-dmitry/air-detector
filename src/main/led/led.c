@@ -71,7 +71,7 @@ void led_commands(const char * topic, const char * data) {
 static void led_sender_task(void* arg) {
     rmt_transmit_config_t transmit_config = {
         .loop_count = 0,
-		.flags.eot_level = 0 // TODO: think about set 1 here - it will reduce 10mA current consumption
+		.flags.eot_level = 1
     };
 
     while(true) {
