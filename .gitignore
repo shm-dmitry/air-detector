@@ -3,6 +3,7 @@ schematics/air-detector/*.lck
 src/build/
 src/sdkconfig
 src/sdkconfig.old
+src/server_certs/ca_cert.pem
 3d/*.gcode
 3d/*.FCBak
 

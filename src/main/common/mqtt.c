@@ -4,6 +4,7 @@
 #include "nvs_rw.h"
 #include "sdkconfig.h"
 #include "mqtt_healthcheck.h"
+#include "mqtt_ota.h"
 
 #include "../log/log.h"
 
@@ -208,6 +209,10 @@ void mqtt_start() {
 	mqtt_healthcheck_init();
 #endif
 
+#if CONFIG_MQTT_OTA_ENABLED
+	mqtt_ota_init();
+#endif
+
 	client = esp_mqtt_client_init(&mqtt_cfg);
     esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
     if (esp_mqtt_client_start(client)) {
@@ -216,4 +221,8 @@ void mqtt_start() {
     } else {
     	ESP_LOGI(LOG_MQTT, "MQTT started");
     }
+
+#if CONFIG_MQTT_OTA_ENABLED
+	mqtt_ota_on_started();
+#endif
 }
