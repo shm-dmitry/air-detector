@@ -21,11 +21,9 @@
 
 #define MQ136_APPLY_COMPENSATION_PERIOD 60000000
 #define MQ136_EXEC_PERIOD  				30000000
-#define MQ136_NOVALUE      				0xFFFF
 #define MQ136_COMPENSATION_NOVALUE      126
 #define MQ136_CALIBRATION_NOVALUE		0xFFFF
 #define MQ136_AM		   				((double)4095.0)
-#define MQ136_3_3V		   				((double)3.3)
 
 #define MQ136_DEBUG_COMPENSATIONS			true
 #define MQ136_DEBUG_CALCULATION				true
@@ -51,8 +49,7 @@
 #define MQ136_AUTORECALIBRATE_COUNTER_MAX 5
 
 mq136_nvs_data_t mq136_calibration_value = {
-	.a0     = MQ136_CALIBRATION_NOVALUE,
-	.v5x100 = MQ136_CALIBRATION_NOVALUE
+	.a0     = MQ136_CALIBRATION_NOVALUE
 };
 volatile int8_t mq136_compensation_temperature = MQ136_COMPENSATION_NOVALUE;
 volatile uint8_t mq136_compensation_humidity   = MQ136_COMPENSATION_NOVALUE;
@@ -132,33 +129,28 @@ void mq136_set_temp_humidity(int8_t temperature, uint8_t humidity) {
 // Math:
 // As  = ADC value for current measurement (adc variable)
 // Ao  = ADC value for zero-measurement    (calibrated value)
-// V   = voltage on 5V-line
 // Am  = 4095 (max ADC value)
-// 3.3 = voltage on 3.3V-line
 
-// Rs/Ro = (Ao / As) * (V*Am - As*3.3) / (V*Am - Ao*3.3)
+// Rs/Ro = (Ao / As) * (Am - As) / (Am - Ao) = (Ao * (Am - As)) / (As * (Am - Ao))
 
-uint16_t mq136_adc_to_ppm(int adc, bool autocompensation) {
-	if (mq136_calibration_value.a0 == MQ136_CALIBRATION_NOVALUE     || mq136_calibration_value.a0 == 0 ||
-		mq136_calibration_value.v5x100 == MQ136_CALIBRATION_NOVALUE || mq136_calibration_value.v5x100 == 0) {
+bool mq136_adc_to_ppm(int adc, bool autocompensation, double * result) {
+	if (mq136_calibration_value.a0 == MQ136_CALIBRATION_NOVALUE || mq136_calibration_value.a0 == 0) {
 		ESP_LOGW(LOG_MQ136, "No calibration. ADC = %d", adc);
-		return MQ136_NOVALUE;
+		return false;
 	}
 
 	if (adc <= 0) {
 		ESP_LOGW(LOG_MQ136, "Bad ADC data: ADC = %d", adc);
-		return MQ136_NOVALUE;
+		return false;
 	}
 
-	double temp = ((double)mq136_calibration_value.v5x100/100.0 * MQ136_AM - (double)mq136_calibration_value.a0*MQ136_3_3V);
-	if (temp < 0.001 && temp > -0.001) { // check for a division-by-zero
-		ESP_LOGW(LOG_MQ136, "div by zero. Calibration v5x100 = %d, ADC = %d", mq136_calibration_value.v5x100, adc);
-		return MQ136_NOVALUE;
+	double temp = (double)adc * (MQ136_AM - (double)mq136_calibration_value.a0);
+	if (temp > -0.001 && temp < 0.001) { // check for a division-by-zero
+		ESP_LOGW(LOG_MQ136, "div by zero. ADC = %d", adc);
+		return false;
 	}
 
-	double rs_ro = ((double)mq136_calibration_value.a0 / (double)adc) *
-			((double)mq136_calibration_value.v5x100/100.0 * MQ136_AM - (double)adc*MQ136_3_3V) /
-			temp;
+	double rs_ro = ((double)mq136_calibration_value.a0 * (MQ136_AM - (double)adc)) / temp;
 
 #if MQ136_DEBUG_CALCULATION
 	ESP_LOGI(LOG_MQ136, "Before compensations: ADC = %d -> rs/ro = %f", adc, rs_ro);
@@ -190,29 +182,31 @@ uint16_t mq136_adc_to_ppm(int adc, bool autocompensation) {
 	ESP_LOGI(LOG_MQ136, "Result: %f ppm for ADC = %d and rs/ro = %f", _result, adc, rs_ro);
 #endif
 
-	return _result < 0 ? 0 : (uint16_t)_result;
+	*result = _result;
+	return true;
 }
 
-uint16_t mq136_read_value() {
+bool mq136_read_value(double * result) {
 	int value = 0;
 	esp_err_t res = adc_oneshot_read(adc_get_channel(), (adc_channel_t) CONFIG_MQ136_ADC_CHANNEL, &value);
 	if (res != ESP_OK) {
 		ESP_LOGE(LOG_MQ136, "Cant read ADC value. Error %04X", res);
-		return MQ136_NOVALUE;
+		return false;
 	}
 
-	return mq136_adc_to_ppm(value, true);
+	return mq136_adc_to_ppm(value, true, result);
 }
 
-void mq136_calibrate_execute(int value, bool full) {
+void mq136_calibrate_execute(int adc, bool full) {
 	uint16_t delta = full ? MQ136_CALIBRATE_DELTA_A0 : MQ136_CALIBRATE_DELTA_AUTORECALIBRATE_A0;
 
-	uint16_t min_a0 = (value < delta ? 0 : value - delta);
-	uint16_t max_a0 = (((uint32_t) value + (uint32_t)delta) > (uint32_t)0xFFFF ? 0xFFFF : value + delta);
+	uint16_t min_a0 = (adc < delta ? 0 : adc - delta);
+	uint16_t max_a0 = (((uint32_t) adc + (uint32_t)delta) > (uint32_t)0xFFFF ? 0xFFFF : adc + delta);
 
-	uint16_t min_ppm_value = 0xFFFF;
-	uint16_t min_ppm_value_a0 = value;
+	double min_ppm_value = 100000;
+	uint16_t min_ppm_value_a0 = adc;
 
+	double result = 0;
 	for (uint16_t i = min_a0; i<max_a0; i++) {
 		if (i % 50 == 0) {
 			vTaskDelay(1);
@@ -220,29 +214,28 @@ void mq136_calibrate_execute(int value, bool full) {
 
 		mq136_calibration_value.a0 = i;
 
-		uint16_t ppm = mq136_adc_to_ppm(value, false);
-		if (ppm == MQ136_NOVALUE) {
-			mq136_calibration_value.a0 = value;
+		if (!mq136_adc_to_ppm(adc, false, &result)) {
+			mq136_calibration_value.a0 = adc;
 			ESP_LOGE(LOG_MQ136, "Calibration - error in mq136_adc_to_ppm");
 			return;
 		}
 
-		if (ppm == 0) {
-			ESP_LOGI(LOG_MQ136, "Calibration - compensation applied. A0: %d -> %d", value, i);
+		if (result < 0.5) {
+			ESP_LOGI(LOG_MQ136, "Calibration - compensation applied. Result: %f; A0: %d -> %d", result, adc, i);
 			return;
 		}
 
-		if (ppm < min_ppm_value) {
-			min_ppm_value = ppm;
+		if (result < min_ppm_value) {
+			min_ppm_value = result;
 			min_ppm_value_a0 = i;
 		}
 	}
 
-	ESP_LOGW(LOG_MQ136, "Calibration - compensation applied partically. PPM = %d; A0: %d -> %d", min_ppm_value, value, min_ppm_value_a0);
+	ESP_LOGW(LOG_MQ136, "Calibration - compensation applied partically. PPM = %f; A0: %d -> %d", min_ppm_value, adc, min_ppm_value_a0);
 	mq136_calibration_value.a0 = min_ppm_value_a0;
 }
 
-void mq136_calibrate(uint16_t v5x100) {
+void mq136_calibrate() {
 	int value = 0;
 	esp_err_t res = adc_oneshot_read(adc_get_channel(), (adc_channel_t) CONFIG_MQ136_ADC_CHANNEL, &value);
 	if (res != ESP_OK) {
@@ -251,7 +244,6 @@ void mq136_calibrate(uint16_t v5x100) {
 	}
 
 	mq136_calibration_value.a0 = value;
-	mq136_calibration_value.v5x100 = v5x100;
 
 	// check - Have I data for a humidity and temperatore calibration?
 	int8_t _t = mq136_compensation_temperature;
@@ -267,13 +259,14 @@ void mq136_calibrate(uint16_t v5x100) {
 }
 
 void mq136_timer_exec_function(void* arg) {
-	uint16_t value = mq136_read_value();
-	if (value == MQ136_NOVALUE) {
+	double result = 0;
+	if (!mq136_read_value(&result)) {
 		return;
 	}
 
 	cJSON *root = cJSON_CreateObject();
-	cJSON_AddNumberToObject(root, "h2s", value);
+	cJSON_AddNumberToObject(root, "h2s", (result < 0 ? (uint16_t)0 : (uint16_t)result));
+	cJSON_AddNumberToObject(root, "h2s_raw", result);
 
 	char * json = cJSON_Print(root);
 	mqtt_publish(CONFIG_MQ136_TOPIC_DATA, json);
@@ -299,12 +292,7 @@ void mq136_commands(const char * topic, const char * data) {
 
 	char * type = cJSON_GetStringValue(cJSON_GetObjectItem(root, "type"));
 	if (strcmp(type, "calibrate") == 0) {
-		uint16_t v5x100 = get_number16_from_json(cJSON_GetObjectItem(root, "v5_x100"), 0xFFFF);
-		if (v5x100 == 0xFFFF) {
-			v5x100 = 500;
-		}
-
-		mq136_calibrate(v5x100);
+		mq136_calibrate();
 	}
 
 	cJSON_Delete(root);
@@ -321,10 +309,10 @@ void mq136_init() {
 
     mq136_nws_read(&mq136_calibration_value);
 
-    if (mq136_calibration_value.a0 != MQ136_CALIBRATION_NOVALUE && mq136_calibration_value.v5x100 != MQ136_CALIBRATION_NOVALUE) {
-    	ESP_LOGI(LOG_MQ136, "Calibration value: A0 = %d; v5x100 = %d", mq136_calibration_value.a0, mq136_calibration_value.v5x100);
+    if (mq136_calibration_value.a0 != MQ136_CALIBRATION_NOVALUE) {
+    	ESP_LOGI(LOG_MQ136, "Calibration value: A0 = %d", mq136_calibration_value.a0);
     } else {
-    	ESP_LOGW(LOG_MQ136, "No calibration value. Use type='calibrate' and v5_x100=... request");
+    	ESP_LOGW(LOG_MQ136, "No calibration value. Use type='calibrate' request");
     }
 
 	esp_timer_create_args_t periodic_timer_args = {
