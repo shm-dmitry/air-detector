@@ -30,6 +30,7 @@ Additional features:
 - Integrates with any smart-house system via MQTT protocol (over WIFI)
 - Contains touchpad supports multi-click (single click, double click, tripple click etc)
 - Contains RGB led to indicate some internal state you want
+- OTA updates - just publish new firmware on your local HTTP server and send URL to it into MQTT topic
 
 3D models
 =======
