@@ -15,6 +15,7 @@
 #include "fans/fan_pwm/fan_pwm.h"
 #include "adc/mq136/mq136.h"
 #include "adc/light/light.h"
+#include "adc/o2a2/o2a2.h"
 #include "adc/adc.h"
 #include "common/wifi.h"
 #include "common/nvs_rw.h"
