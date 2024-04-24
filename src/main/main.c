@@ -54,6 +54,10 @@ void app_main(void)
 	light_init();
 #endif
 
+#if CONFIG_O2A2_ENABLED
+	o2a2_init();
+#endif
+
 #if CONFIG_TOUCHPAD_ENABLED
 	touchpad_init();
 #endif

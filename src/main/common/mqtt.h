@@ -3,12 +3,12 @@
 
 #include "stdbool.h"
 
-typedef void (* mqtt_topic_callback_t)(const char * topic, const char * data);
+typedef void (* mqtt_topic_callback_t)(const char * data, void * arg);
 
 void mqtt_start();
 
-void mqtt_subscribe(const char * topic, mqtt_topic_callback_t callback);
-void mqtt_subscribe_nolog(const char * topic, mqtt_topic_callback_t callback);
+void mqtt_subscribe(const char * topic, mqtt_topic_callback_t callback, void * arg);
+void mqtt_subscribe_nolog(const char * topic, mqtt_topic_callback_t callback, void * arg);
 void mqtt_publish(const char * topic, const char * message);
 void mqtt_publish_sync(const char * topic, const char * message);
 void mqtt_publish_nolog(const char * topic, const char * message);

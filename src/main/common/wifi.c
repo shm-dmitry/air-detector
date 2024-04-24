@@ -79,7 +79,7 @@ static void event_handler(void* arg, esp_event_base_t event_base,
     }
 }
 
-void wifi_mqtt_listener(const char * topic, const char * data) {
+void wifi_mqtt_listener(const char * data, void *) {
 	cJSON *root = cJSON_Parse(data);
 	if (root == NULL) {
 		return;
@@ -175,7 +175,7 @@ void wifi_init() {
 
 	xEventGroupSetBits(s_wifi_event_group, WIFI_ALLOW_BG_RECONNECT_BIT);
 
-    mqtt_subscribe(CONFIG_WIFI_TOPIC, wifi_mqtt_listener);
+    mqtt_subscribe(CONFIG_WIFI_TOPIC, wifi_mqtt_listener, NULL);
 
 	ESP_LOGI(LOG_WIFI, "WIFI configured");
 }

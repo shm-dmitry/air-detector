@@ -15,6 +15,7 @@
 #define LOG_FANPWM		 "fanpwm"
 #define LOG_MQ136		 "mq136"
 #define LOG_LIGHT		 "light"
+#define LOG_O2A2		 "o2a2"
 #define LOG_OTA			 "ota"
 
 #endif /* MAIN_LOG_LOG_H_ */

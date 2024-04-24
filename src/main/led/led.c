@@ -29,7 +29,7 @@ void led_update_color();
 void led_set_nightlight_color(uint32_t wrgb);
 void led_reset_nightlight_color();
 
-void led_commands(const char * topic, const char * data) {
+void led_commands(const char * data, void *) {
 	cJSON *root = cJSON_Parse(data);
 	if (root == NULL) {
 		return;
@@ -154,7 +154,7 @@ void led_init() {
 
 	xTaskCreate(led_sender_task, "LED sender", LED_SENDER_TASK_STACK_SIZE, NULL, 10, NULL);
 
-	mqtt_subscribe(CONFIG_LED_TOPIC_COMMANDS, led_commands);
+	mqtt_subscribe(CONFIG_LED_TOPIC_COMMANDS, led_commands, NULL);
 
 	led_set_color(0);
 

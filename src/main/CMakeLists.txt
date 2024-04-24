@@ -25,8 +25,10 @@ idf_component_register(
     	 "fans/fan_pwm/fan_pwm.c"
     	 "fans/fan_pwm/fan_pwm_api.c"
     	 "fans/fan_pwm/fan_pwm_nvs.c"
+    	 "adc/adc_v_core/adc_v_core.c"
+    	 "adc/adc_v_core/adc_v_core_nvs.c"
     	 "adc/mq136/mq136.c"
-    	 "adc/mq136/mq136_nvs.c"
+    	 "adc/o2a2/o2a2.c"
     	 "adc/light/light.c"
     	 "adc/adc.c"
     INCLUDE_DIRS        # optional, add here public include directories

@@ -15,7 +15,7 @@
 esp_err_t fan_start();
 esp_err_t fan_stop();
 
-void fan_commands(const char * topic, const char * data) {
+void fan_commands(const char * data, void *) {
 	cJSON *root = cJSON_Parse(data);
 	if (root == NULL) {
 		return;
@@ -49,7 +49,7 @@ void fan_init() {
 
 	fan_stop();
 
-	mqtt_subscribe(CONFIG_FAN_TOPIC_DATA, fan_commands);
+	mqtt_subscribe(CONFIG_FAN_TOPIC_DATA, fan_commands, NULL);
 }
 
 

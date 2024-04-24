@@ -10,7 +10,7 @@
 
 #define FAN_PWM_NOCHANGE 250
 
-void fan_pwm_commands(const char * topic, const char * data) {
+void fan_pwm_commands(const char * data, void *) {
 	cJSON *root = cJSON_Parse(data);
 	if (root == NULL) {
 		return;
@@ -32,5 +32,5 @@ void fanpwm_init() {
 		ESP_LOGI(LOG_FANPWM, "Cant initlize FAN PWM driver: %04X", res);
 	}
 
-	mqtt_subscribe(CONFIG_FANPWM_TOPIC_COMMAND, fan_pwm_commands);
+	mqtt_subscribe(CONFIG_FANPWM_TOPIC_COMMAND, fan_pwm_commands, NULL);
 }

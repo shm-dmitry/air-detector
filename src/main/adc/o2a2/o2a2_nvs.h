@@ -1,8 +1,0 @@
-#ifndef MAIN_ADC_O2A2_O2A2_NVS_H_
-#define MAIN_ADC_O2A2_O2A2_NVS_H_
-
-
-
-
-
-#endif /* MAIN_ADC_O2A2_O2A2_NVS_H_ */

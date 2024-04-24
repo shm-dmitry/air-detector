@@ -36,7 +36,7 @@ void mqtt_ota_upgrade(void * arg) {
     vTaskDelete(NULL);
 }
 
-void mqtt_ota_commands(const char * topic, const char * data) {
+void mqtt_ota_commands(const char * data, void *) {
 	if (strncmp(data, "https://", 8) == 0) {
 		char * url = malloc(strlen(data) + 1);
 		if (url != NULL) {
@@ -49,7 +49,7 @@ void mqtt_ota_commands(const char * topic, const char * data) {
 
 void mqtt_ota_init() {
 #if CONFIG_MQTT_OTA_ENABLED
-	mqtt_subscribe(CONFIG_MQTT_OTA_TOPIC, mqtt_ota_commands);
+	mqtt_subscribe(CONFIG_MQTT_OTA_TOPIC, mqtt_ota_commands, NULL);
 #endif
 }
 

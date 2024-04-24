@@ -18,9 +18,9 @@ uint8_t mqtt_healthcheck_errors_count = 0;
 uint8_t mqtt_healthcheck_sended_counter = 0;
 uint8_t mqtt_healthcheck_received_counter = 0;
 
-void mqtt_healthcheck_events(const char * topic, const char * data) {
+void mqtt_healthcheck_events(const char * data, void *) {
 	if (strcmp(data, "restart") == 0) {
-		ESP_LOGE(LOG_MQTT, "Healthcheck received %s command from topic %s. Restart!", data, topic);
+		ESP_LOGE(LOG_MQTT, "Healthcheck received %s command. Restart!", data);
 		esp_restart();
 	} else {
 		mqtt_healthcheck_received_counter = atoi(data);
@@ -52,7 +52,7 @@ void mqtt_healthcheck_init() {
 	mqtt_healthcheck_sended_counter = 0;
 	mqtt_healthcheck_received_counter = 0;
 
-	mqtt_subscribe_nolog(CONFIG_MQTT_HEALTHCHECK_TOPIC, mqtt_healthcheck_events);
+	mqtt_subscribe_nolog(CONFIG_MQTT_HEALTHCHECK_TOPIC, mqtt_healthcheck_events, NULL);
 
 	esp_timer_create_args_t periodic_timer_args = {
 			.callback = &mqtt_healthcheck_task,
