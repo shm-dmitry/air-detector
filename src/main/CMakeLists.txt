@@ -32,6 +32,7 @@ idf_component_register(
     	 "adc/mq7/mq7.c"
     	 "adc/light/light.c"
     	 "adc/adc.c"
+    	 "uart/uart_core.c"
     	 "uart/mh_z19b/mh_z19b.c"
     	 "uart/pms7003/pms7003.c"
     INCLUDE_DIRS        # optional, add here public include directories
