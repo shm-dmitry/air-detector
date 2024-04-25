@@ -16,10 +16,13 @@
 #include "adc/mq136/mq136.h"
 #include "adc/light/light.h"
 #include "adc/o2a2/o2a2.h"
+#include "adc/mq7/mq7.h"
 #include "adc/adc.h"
 #include "common/wifi.h"
 #include "common/nvs_rw.h"
 #include "common/mqtt.h"
+#include "uart/mh_z19b/mh_z19b.h"
+#include "uart/pms7003/pms7003.h"
 
 void app_main(void)
 {
@@ -50,6 +53,10 @@ void app_main(void)
 	mq136_init();
 #endif
 
+#if CONFIG_MQ7_ENABLED
+	mq7_init();
+#endif
+
 #if CONFIG_LIGHT_ENABLED
 	light_init();
 #endif
@@ -68,6 +75,14 @@ void app_main(void)
 
 #if CONFIG_FANPWM_ENABLED
 	fanpwm_init();
+#endif
+
+#if CONFIG_MHZ19B_ENABLED
+	mhz19b_init();
+#endif
+
+#if CONFIG_PMS7003_ENABLED
+	pms7003_init();
 #endif
 
 	mqtt_start();

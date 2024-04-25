@@ -29,8 +29,11 @@ idf_component_register(
     	 "adc/adc_v_core/adc_v_core_nvs.c"
     	 "adc/mq136/mq136.c"
     	 "adc/o2a2/o2a2.c"
+    	 "adc/mq7/mq7.c"
     	 "adc/light/light.c"
     	 "adc/adc.c"
+    	 "uart/mh_z19b/mh_z19b.c"
+    	 "uart/pms7003/pms7003.c"
     INCLUDE_DIRS        # optional, add here public include directories
     PRIV_INCLUDE_DIRS   # optional, add here private include directories
     REQUIRES            # optional, list the public requirements (component names)

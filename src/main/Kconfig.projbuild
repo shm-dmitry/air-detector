@@ -178,6 +178,24 @@ menu "Air-Detector Settings"
    	  		default "/o2a2/command"
    	  endmenu
    	  
+   	  menu "MQ7 (CO)"
+   	  	config MQ7_ENABLED
+	   	  	boolean "Enable MQ7 integraion"
+	   	  	default false
+   	  	
+	   	config MQ7_ADC_CHANNEL
+	   	  	int "ADC channel connected to sensor"
+	   	  	default 4
+   	  	
+   	  	config MQ7_TOPIC_DATA
+   	  		string "MQTT topic for sensor data"
+   	  		default "/mq7/data"
+   	  	
+   	  	config MQ7_TOPIC_COMMAND
+   	  		string "MQTT topic for commands to sensor"
+   	  		default "/mq7/command"
+   	  endmenu
+   	  
    	  menu "Light sensor"
    	  	config LIGHT_ENABLED
 	   	  	boolean "Enable light integraion"
@@ -190,6 +208,46 @@ menu "Air-Detector Settings"
    	  	config LIGHT_TOPIC_DATA
    	  		string "MQTT topic for sensor data"
    	  		default "/light/data"
+   	  endmenu
+   	  
+   	  menu "MHZ19B sensor (CO2)"
+   	  	config MHZ19B_ENABLED
+	   	  	boolean "Enable MHZ19B integraion"
+	   	  	default false
+   	  	
+	   	config MHZ19B_RX
+	   	  	int "MHZ19B RX GPIO"
+	   	  	default 17
+   	  	
+	   	config MHZ19B_TX
+	   	  	int "MHZ19B TX GPIO"
+	   	  	default 16
+   	  	
+   	  	config MHZ19B_TOPIC_DATA
+   	  		string "MQTT topic for sensor data"
+   	  		default "/mhz19b/data"
+   	  	
+   	  	config MHZ19B_TOPIC_COMMAND
+   	  		string "MQTT topic for commands to sensor"
+   	  		default "/mhz19b/command"
+   	  endmenu
+   	  
+   	  menu "PMS7003 sensor (Dust)"
+   	  	config PMS7003_ENABLED
+	   	  	boolean "Enable PMS7003 integraion"
+	   	  	default false
+   	  	
+	   	config PMS7003_RX
+	   	  	int "PMS7003 RX GPIO"
+	   	  	default 3
+   	  	
+	   	config PMS7003_TX
+	   	  	int "PMS7003 TX GPIO"
+	   	  	default 1
+   	  	
+   	  	config PMS7003_TOPIC_DATA
+   	  		string "MQTT topic for sensor data"
+   	  		default "/pms7003/data"
    	  endmenu
    endmenu
  endmenu

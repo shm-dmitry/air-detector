@@ -14,8 +14,11 @@
 #define LOG_FAN          "fan"
 #define LOG_FANPWM		 "fanpwm"
 #define LOG_MQ136		 "mq136"
+#define LOG_MQ7			 "mq7"
 #define LOG_LIGHT		 "light"
 #define LOG_O2A2		 "o2a2"
 #define LOG_OTA			 "ota"
+#define LOG_MHZ19B		 "mhz19b"
+#define LOG_PMS7003		 "pms7003"
 
 #endif /* MAIN_LOG_LOG_H_ */

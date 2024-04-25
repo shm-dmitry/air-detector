@@ -1,0 +1,6 @@
+#ifndef MAIN_UART_PMS7003_PMS7003_H_
+#define MAIN_UART_PMS7003_PMS7003_H_
+
+void pms7003_init();
+
+#endif /* MAIN_UART_PMS7003_PMS7003_H_ */
