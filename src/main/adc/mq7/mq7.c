@@ -39,13 +39,13 @@ double mq7_adc2rsro(uint16_t adc, uint16_t calibration_value) {
 // Humidity compensation:
 // Linear dependency: 0.28 on T=-10 -> 0.14 on T=50; so:
 // dh:85->33=7*(110-x)/3000
-// and dh:any->33= dh85->33/52*(humidity-33)
+// and dh:any->33= [dh85->33]/52*(humidity-33)
 double mq7_apply_compensation(double value, int8_t compensation_t, uint8_t compensation_h, bool * success) {
 	double t = compensation_t;
 	double h = compensation_h;
 
 	// 1. find humidity delta from current to 33% at current temperature
-	double delta_h_85_33 = ((110.0-h)*7.0)/3000.0;
+	double delta_h_85_33 = ((110.0-t)*7.0)/3000.0;
 	double delta_h = ((h-33.0)*delta_h_85_33)/52.0;
 
 	// 2. find T delta for this temperature and 33% humidity (it's compensation allready applied)
