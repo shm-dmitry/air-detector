@@ -7,8 +7,10 @@
 typedef double (*adc_v_core__adc2rsro_t)(uint16_t adc, uint16_t calibration_value);
 typedef double (*adc_v_core__apply_compensation_t)(double rsro, int8_t compensation_t, uint8_t compensation_h, bool * success);
 typedef double (*adc_v_core__rsro2value_t)(double rsro);
+typedef bool (*adc_v_core__is_startup_allowed_t)();
 
 typedef struct {
+	adc_v_core__is_startup_allowed_t is_startup_allowed;
 	adc_v_core__adc2rsro_t           adc2rsro;
 	adc_v_core__apply_compensation_t apply_compensation;
 	adc_v_core__rsro2value_t         rsro2value;
@@ -36,6 +38,8 @@ typedef struct {
 	adc_v_core__buildconfig_t        buildconfig;
 	uint16_t                         calibrate_find_value_x10;
 } adc_v_core_setup_t;
+
+bool adc_v_core_startup_allowed();
 
 void adc_v_core_init(const adc_v_core_setup_t * settings);
 

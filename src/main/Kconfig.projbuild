@@ -245,6 +245,10 @@ menu "Air-Detector Settings"
 	   	  	int "PMS7003 TX GPIO"
 	   	  	default 1
    	  	
+	   	config PMS7003_RESET
+	   	  	int "PMS7003 Reset GPIO"
+	   	  	default 18
+   	  	
    	  	config PMS7003_TOPIC_DATA
    	  		string "MQTT topic for sensor data"
    	  		default "/pms7003/data"

@@ -1,11 +1,25 @@
 #include "o2a2.h"
 
+#include "stddef.h"
+
 #include "sdkconfig.h"
 
 #include "../adc_v_core/adc_v_core.h"
 #include "../../log/log.h"
+#include "../../common/delay_timer.h"
 
 #define O2A2_STANDART_O2_VALUE_X10   209
+#define O2A2_STARTUP_DELAY           60000
+
+t_delay_timer * o2a2_startup_timer = NULL;
+
+bool o2a2_is_startup_allowed() {
+	if (o2a2_startup_timer == NULL) {
+		return true;
+	}
+
+	return delay_timer_start_or_check(o2a2_startup_timer);
+}
 
 double o2a2_adc2rsro(uint16_t adc, uint16_t calibration_value) {
 	// calibration_value - is an O2 value at O2A2_STANDART_O2_VALUE_X10 %.
@@ -65,11 +79,14 @@ void o2a2_init() {
 		},
 
 		.functions = {
+			.is_startup_allowed = &o2a2_is_startup_allowed,
 			.adc2rsro = &o2a2_adc2rsro,
 			.apply_compensation = &o2a2_apply_compensation,
 			.rsro2value = &o2a2_rsro2value
 		}
 	};
+
+	o2a2_startup_timer = delay_timer_allocate(O2A2_STARTUP_DELAY);
 
 	adc_v_core_init(&setup);
 }

@@ -40,16 +40,26 @@ static void mqtt_event_handler_cb(esp_mqtt_event_handle_t event) {
 		break;
 	case MQTT_EVENT_DATA:
 		if (event->data && event->topic && event->data_len && event->topic_len && event->data_len < 1024 && event->topic_len < 1024) {
-			for (int i = 0; i<callbacks_count; i++) {
-				if (callbacks[i].topic && strncmp(event->topic, callbacks[i].topic, event->topic_len) == 0) {
-					if (callbacks[i].logmessages) {
-						ESP_LOGI(LOG_MQTT, "Received message in topic %s : %s", callbacks[i].topic, event->data);
+			char * _data = malloc(event->data_len + 1);
+			if (_data){
+				memset(_data, 0, event->data_len + 1);
+				strncpy(_data, event->data, event->data_len);
+
+				for (int i = 0; i<callbacks_count; i++) {
+					if (callbacks[i].topic && strncmp(callbacks[i].topic, event->topic, event->topic_len) == 0) {
+						if (callbacks[i].logmessages) {
+							ESP_LOGI(LOG_MQTT, "Received message in topic %s : %s", callbacks[i].topic, _data);
+						}
+
+						callbacks[i].function(_data, callbacks[i].arg);
+
+						break;
 					}
-
-					callbacks[i].function(event->data, callbacks[i].arg);
-
-					break;
 				}
+
+				free(_data);
+			} else {
+				ESP_LOGE(LOG_MQTT, "OOM malloc %d bytes", (event->data_len + 1));
 			}
 		}
 		break;

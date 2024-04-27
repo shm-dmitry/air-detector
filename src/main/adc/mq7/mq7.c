@@ -109,6 +109,7 @@ void mq7_init() {
 		},
 
 		.functions = {
+			.is_startup_allowed = &adc_v_core_startup_allowed,
 			.adc2rsro = &mq7_adc2rsro,
 			.apply_compensation = &mq7_apply_compensation,
 			.rsro2value = &mq7_rsro2value

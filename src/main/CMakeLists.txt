@@ -10,6 +10,7 @@ idf_component_register(
     	 "common/nvs_rw.c"
     	 "common/wifi_nvs.c"
     	 "common/wifi.c"
+    	 "common/delay_timer.c"
     	 "led/led.c"
     	 "led/led_encoder.c"
     	 "i2c/i2c_impl.c"

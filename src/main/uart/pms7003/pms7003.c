@@ -7,6 +7,8 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
+#include "driver/gpio.h"
+
 #include "../uart_core.h"
 
 #include "cJSON.h"
@@ -36,6 +38,22 @@ void pms7003_init() {
 	if (res) {
 		return;
 	}
+
+	gpio_config_t config = {
+				.intr_type = GPIO_INTR_DISABLE,
+			    .mode = GPIO_MODE_OUTPUT,
+				.pin_bit_mask = 1ULL << CONFIG_PMS7003_RESET,
+				.pull_down_en = GPIO_PULLDOWN_DISABLE,
+				.pull_up_en = GPIO_PULLUP_DISABLE,
+			};
+
+	res = gpio_config(&config);
+	if (res) {
+		ESP_LOGI(LOG_FAN, "Cant init GPIO. error %d", res);
+		return;
+	}
+
+	gpio_set_level(CONFIG_PMS7003_RESET, 0);
 
 	res = pms7003_wakeup();
 	if (res) {
@@ -113,7 +131,12 @@ esp_err_t pms7003_read(pms7003_data_t * data) {
 }
 
 void pms7003_timer_exec_function(void* arg) {
-	pms7003_data_t data = { 0 };
+	pms7003_data_t data = {
+		.atmospheric_pm_1_0  = 0,
+		.atmospheric_pm_2_5  = 0,
+		.atmospheric_pm_10_0 = 0
+	};
+
 	if (pms7003_read(&data)) {
 		return;
 	}

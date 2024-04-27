@@ -201,6 +201,10 @@ void adc_v_core_commands(const char * data, void * arg) {
 void adc_v_core_timer_exec_function(void* arg) {
 	adc_v_core_context_t * context = (adc_v_core_context_t *) arg;
 
+	if (!context->functions.is_startup_allowed()) {
+		return;
+	}
+
 	double result = 0;
 	if (!adc_v_core_read_value(context, &result)) {
 		return;
@@ -336,3 +340,8 @@ void adc_v_core_timer_apply_correction_function(void* arg) {
 	}
 #endif
 }
+
+bool adc_v_core_startup_allowed() {
+	return true;
+}
+

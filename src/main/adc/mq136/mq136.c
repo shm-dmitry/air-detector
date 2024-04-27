@@ -109,6 +109,7 @@ void mq136_init() {
 		},
 
 		.functions = {
+			.is_startup_allowed = &adc_v_core_startup_allowed,
 			.adc2rsro = &mq136_adc2rsro,
 			.apply_compensation = &mq136_apply_compensation,
 			.rsro2value = &mq136_rsro2value
