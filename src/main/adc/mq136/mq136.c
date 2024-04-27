@@ -1,5 +1,7 @@
 #include "mq136.h"
 
+#include "math.h"
+
 #include "sdkconfig.h"
 
 #include "../adc_v_core/adc_v_core.h"
@@ -26,45 +28,41 @@ double mq136_adc2rsro(uint16_t adc, uint16_t calibration_value) {
 	return ((double)calibration_value * (MQ136_AM - (double)adc)) / temp;
 }
 
-// Used a polynomial of the third degree to approxymate graph from datasheet
-// Y = A*x^3 + B*x^2 + C*x + D.
-// I took few points from datasheet and solves a system of linear equations
-// so, I fount next values for 33%RH and different temperatures:
-// A = -1/405000
-// B = 13/27000
-// C = -37/1350
-// D = 557/405
-// Different values for RH approxymated via linear delta by RH. But this delta
-// depeneded same from T, so this delta approxymated by T using same polynom with
-// values:
-// A = 1/8100000
-// B = -13/540000
-// C = 101/54000
-// D = -1043/8100
+// Temperature compensation: T = T+20; and used next formula
+// y = A*e^(-Bx) + C*e^(-Dx) + F
+// Where:
+// A = 9.4232
+// B = 0.0001651
+// C = 1.3875
+// D = 0.063899
+// F = -8.4365
+// Humidity compensation:
+// Linear dependency: 0.2 on T=-10 & 0.1 on T=50; so:
+// dh:85->33=-1/600x+11/60 = (110-x)/600
+// and dh:any->33= dh85->33/52*(humidity-33)
 double mq136_apply_compensation(double value, int8_t compensation_t, uint8_t compensation_h, bool * success) {
 	double t = compensation_t;
 	double h = compensation_h;
 
-	// 1st step: found hum-delta step for this temperature.
-	double hum_delta_step_85_to_33 = t*t*t*1.0/8100000.0 - t*t*13.0/540000.0 + t*101.0/54000.0 + (-1043.0/8100.0);
-	// found hum compensation using y = D * (H-33) / (85-33) to transfer humidity from current to MQ136_COMPENSATION_DEFAULT_H
-	double hum_delta = hum_delta_step_85_to_33 * ((MQ136_COMPENSATION_DEFAULT_H - 33.0) - (h - 33.0)) / (85.0 - 33.0);
+	// 1. find humidity delta from current to 33% at current temperature
+	double delta_h_85_33 = (110.0-h)/600.0;
+	double delta_h = ((h-33.0)*delta_h_85_33)/52.0;
 
-	// 2nd step. ok, at now we can calculate temperature delta (for hum = 33%, hum compensation calculated on step-1)
-	double temp_delta_tcur = -t*t*t*1.0/405000.0 + t*t*13.0/27000.0 - t*37.0/1350.0 + 557.0/405.0;
+	// 2. find T delta for this temperature and 33% humidity (it's compensation allready applied)
+	double delta_t = 9.4232*exp(-0.0001651*(t+20.0)) + 1.3875*exp(-0.063899*(t+20.0)) - 8.4365;
 
-	// total compensation
-	double compensation = hum_delta + temp_delta_tcur;
+	// 3. total compensation: humidity moves graph down
+	double compensation = delta_t - delta_h;
 
 	if (compensation < 0.5 || compensation > 2) {
-		ESP_LOGE(LOG_MQ136, "Bad compensations: H = %d, T = %d; rs/ro = %f, hum_delta = %f; temp_delta = %f; total compensation = %f",
-				compensation_h, compensation_t, value, hum_delta, temp_delta_tcur, compensation);
+		ESP_LOGE(LOG_MQ136, "Bad compensations: H = %d, T = %d; rs/ro = %f, delta_h = %f; delta_t = %f; total compensation = %f",
+				compensation_h, compensation_t, value, delta_h, delta_t, compensation);
 		*success = false;
 		return value;
 	} else {
 #if MQ136_DEBUG_COMPENSATIONS
-		ESP_LOGI(LOG_MQ136, "Apply compensations: H = %d, T = %d; rs/ro = %f, hum_delta = %f; temp_delta = %f; total compensation = %f, result = %f",
-				_h, _t, value, hum_delta, temp_delta_tcur, compensation, (value / compensation));
+		ESP_LOGI(LOG_MQ136, "Apply compensations: H = %d, T = %d; rs/ro = %f, delta_h = %f; delta_t = %f; total compensation = %f, result = %f",
+				_h, _t, value, delta_h, delta_t, compensation, (value / compensation));
 #endif
 	}
 
@@ -74,19 +72,16 @@ double mq136_apply_compensation(double value, int8_t compensation_t, uint8_t com
 }
 
 
-// Used a polynomial of the third degree to approxymate graph from datasheet
-// Y = A*x^3 + B*x^2 + C*x + D.
-// I took few points from datasheet and solves a system of linear equations
-// so, I fount next values:
-// A = -8000/7
-// B = 26200/7
-// C = -29040/7
-// D = 11120/7
+// Used approximation formula:
+// y = A*e^(-Bx) + C*e^(-Dx) + F
+// Where:
+// A = 4551.6
+// B = 5.4194
+// C = 1357.4
+// D = 0.013213
+// F = -1322.4
 double mq136_rsro2value(double rs_ro) {
-	return -8000.0 * (rs_ro)*(rs_ro)*(rs_ro) / 7.0 +
-	26200.0 * (rs_ro)*(rs_ro) / 7.0 +
-	-29040.0 * (rs_ro) / 7.0 +
-	11120.0 / 7.0;
+	return 4551.6*exp(-5.4194*rs_ro) + 1357.4*exp(-0.013213*rs_ro) - 1322.4;
 }
 
 void mq136_init() {
