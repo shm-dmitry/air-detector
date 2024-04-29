@@ -49,7 +49,7 @@ double mq7_apply_compensation(double value, int8_t compensation_t, uint8_t compe
 	double delta_h = ((h-33.0)*delta_h_85_33)/52.0;
 
 	// 2. find T delta for this temperature and 33% humidity (it's compensation allready applied)
-	double delta_t = 0.746382*exp(-0.031302*(t+20.0)) + 1.689218*exp(-0.266425*(t+20.0)) - 0.786563;
+	double delta_t = 0.746382*exp(-0.031302*(t+20.0)) + 1.689218*exp(-0.266425*(t+20.0)) + 0.786563;
 
 	// 3. total compensation: humidity moves graph down
 	double compensation = delta_t - delta_h;

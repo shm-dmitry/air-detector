@@ -18,7 +18,12 @@ bool o2a2_is_startup_allowed() {
 		return true;
 	}
 
-	return delay_timer_start_or_check(o2a2_startup_timer);
+	if (delay_timer_start_or_check(o2a2_startup_timer)) {
+		delay_timer_release(&o2a2_startup_timer);
+		return true;
+	} else {
+		return false;
+	}
 }
 
 double o2a2_adc2rsro(uint16_t adc, uint16_t calibration_value) {

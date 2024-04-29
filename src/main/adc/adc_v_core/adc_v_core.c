@@ -104,6 +104,11 @@ bool adc_v_core_adc2result(adc_v_core_context_t * context, uint16_t adc, bool au
 }
 
 void adc_v_core_calibrate(adc_v_core_context_t * context) {
+	if (!context->functions.is_startup_allowed()) {
+		ESP_LOGE(context->tag, "Calibration not allowed");
+		return;
+	}
+
 	int value = 0;
 	esp_err_t res = adc_oneshot_read(adc_get_channel(), (adc_channel_t) (context->adc_channel), &value);
 	if (res != ESP_OK) {

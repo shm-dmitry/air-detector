@@ -22,7 +22,7 @@ static uint8_t COMMAND_MHZ19_CALIBRATE_ZERO[] = { 0x87, 0x00, 0x00, 0x00, 0x00, 
 #define MHZ19B_BUF_SIZE 	   9
 #define MHZ19B_DRIVER_BUF_SIZE 1024
 #define MHZ19B_QUEUE_SIZE      10
-#define MHZ19B_UART_PORT       0
+#define MHZ19B_UART_PORT       2
 #define MHZ19B_AWAIT_RESPONSE  1000
 #define MHZ19B_EXEC_PERIOD 	   10000000
 
@@ -109,11 +109,11 @@ uint8_t mhz19b_crc(const uint8_t * buffer) {
 
 esp_err_t mhz19b_validate(const uint8_t * send, const uint8_t * reply) {
 	if (reply[0] != 0xFF) {
-		ESP_LOGE(LOG_MHZ19B, "Invalid response from device (bad magic byte)");
+		ESP_LOGE(LOG_MHZ19B, "Invalid response from device (bad magic byte) %02X != 0xFF", reply[0]);
 		return ESP_ERR_INVALID_RESPONSE;
 	}
-	if (reply[1] != send[0]) {
-		ESP_LOGE(LOG_MHZ19B, "Invalid response from device (bad command)");
+	if (reply[1] != send[2]) {
+		ESP_LOGE(LOG_MHZ19B, "Invalid response from device (bad command) %02X != %02X", reply[1], send[0]);
 		return ESP_ERR_INVALID_RESPONSE;
 	}
 
