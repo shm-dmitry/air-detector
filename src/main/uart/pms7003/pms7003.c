@@ -53,7 +53,7 @@ void pms7003_init() {
 		return;
 	}
 
-	gpio_set_level(CONFIG_PMS7003_RESET, 0);
+	gpio_set_level(CONFIG_PMS7003_RESET, 1);
 
 	res = pms7003_wakeup();
 	if (res) {
