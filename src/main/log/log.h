@@ -21,10 +21,12 @@
 #define LOGE(tag, format, ...) ESP_LOGE(tag, format, ##__VA_ARGS__)
 #define LOGI(tag, format, ...) ESP_LOGI(tag, format, ##__VA_ARGS__)
 #define LOGW(tag, format, ...) ESP_LOGW(tag, format, ##__VA_ARGS__)
+#define LOG_BUFFER_HEXDUMP(tag, buffer, buff_len, level) ESP_LOG_BUFFER_HEXDUMP(tag, buffer, buff_len, level)
 #else
 #define LOGE(tag, format, ...)
 #define LOGI(tag, format, ...)
 #define LOGW(tag, format, ...)
+#define LOG_BUFFER_HEXDUMP(tag, buffer, buff_len, level)
 #endif
 
 #define LOG_NWS_RW       "nws_rw"

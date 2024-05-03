@@ -86,7 +86,7 @@ bool adc_v_core_adc2result(adc_v_core_context_t * context, uint16_t adc, bool au
 			if (context->autorecalibrate_counter < ADC_V_CORE_AUTORECALIBRATE_COUNTER_MAX) {
 				context->autorecalibrate_counter++;
 			} else {
-				ESP_LOGW(context->tag, "rsro->ppm : result=%f. Start fast auto-recalibration to find zero.", _result);
+				LOGW(context->tag, "rsro->ppm : result=%f. Start fast auto-recalibration to find zero.", _result);
 				adc_v_core_calibrate_execute(context, adc, false);
 				context->autorecalibrate_counter = 0;
 			}
@@ -260,14 +260,14 @@ void adc_v_core_init(const adc_v_core_setup_t * settings) {
 
     context->topic_data = (char *)malloc(strlen(buildconfig.topic_data) + 1);
     if (context->topic_data == NULL) {
-        ESP_LOGE(buildconfig.tag, "OOM: topic_data");
+        LOGE(buildconfig.tag, "OOM: topic_data");
     	return;
     }
     strcpy(context->topic_data, buildconfig.topic_data);
 
     context->tag = (char *)malloc(strlen(buildconfig.tag) + 1);
     if (context->tag == NULL) {
-        ESP_LOGE(buildconfig.tag, "OOM: topic_data");
+        LOGE(buildconfig.tag, "OOM: topic_data");
     	return;
     }
     strcpy(context->tag, buildconfig.tag);

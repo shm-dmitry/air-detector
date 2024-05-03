@@ -210,7 +210,7 @@ esp_err_t touchpad_setup(touchpad_callback_t callback) {
 		return res;
 	}
 
-	ESP_LOGI(LOG_TOUCHPAD, "touch_pad_read_filtered: readed value %d", touch_value);
+	LOGI(LOG_TOUCHPAD, "touch_pad_read_filtered: readed value %d", touch_value);
 	touchpad_threshold = TOUCHPAD_THRESHOLD_CALC(touch_value);
 
 	xTaskCreate(touchpad_listener, "on touch pad listener", 2048, NULL, 10, NULL);

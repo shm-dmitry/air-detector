@@ -43,16 +43,16 @@ void i2c_init_driver(int gpio_sda, int gpio_scl){
 
 	vSemaphoreCreateBinary(i2c_mutex);
 	if (i2c_mutex == NULL) {
-	    ESP_LOGE(LOG_I2C, "Cant init semaphore");
+	    LOGE(LOG_I2C, "Cant init semaphore");
 		return;
 	}
 
-    ESP_LOGI(LOG_I2C, "I2C port with pins sda %d / scl %d initialized", gpio_sda, gpio_scl);
+    LOGI(LOG_I2C, "I2C port with pins sda %d / scl %d initialized", gpio_sda, gpio_scl);
 }
 
 i2c_handler_t * i2c_get_handlers(uint8_t addr, uint16_t transfer_timeout_ms){
 	if (i2c_bus_handle == NULL) {
-		ESP_LOGE(LOG_I2C, "I2C port not initialized yet");
+		LOGE(LOG_I2C, "I2C port not initialized yet");
 		return NULL;
 	}
 
@@ -88,11 +88,11 @@ esp_err_t i2c_read(void * i2c_handler_context, uint8_t* buffer, uint8_t buffer_s
 	i2c_context_t * context = (i2c_context_t *) i2c_handler_context;
 
 #if I2C_DEBUG_OUTPUT
-	ESP_LOGI(LOG_I2C, "i2c_read send request to port addr %02x", context->addr);
+	LOGI(LOG_I2C, "i2c_read send request to port addr %02x", context->addr);
 #endif
 
 	if (xSemaphoreTake(i2c_mutex, I2C_MUTEX_AWAIT) != pdTRUE) {
-		ESP_LOGE(LOG_I2C, "i2c_read take mutex timeout for address %02X", context->addr);
+		LOGE(LOG_I2C, "i2c_read take mutex timeout for address %02X", context->addr);
 		return ESP_ERR_TIMEOUT;
 	}
 
@@ -102,8 +102,8 @@ esp_err_t i2c_read(void * i2c_handler_context, uint8_t* buffer, uint8_t buffer_s
 
 #if I2C_DEBUG_OUTPUT
     if (res == ESP_OK) {
-    	ESP_LOGI(LOG_I2C, "i2c_read received buffer from addr %02x", context->addr);
-		ESP_LOG_BUFFER_HEXDUMP(LOG_I2C, buffer, buffer_size, ESP_LOG_INFO);
+    	LOGI(LOG_I2C, "i2c_read received buffer from addr %02x", context->addr);
+		LOG_BUFFER_HEXDUMP(LOG_I2C, buffer, buffer_size, ESP_LOG_INFO);
     }
 #endif
 
@@ -114,12 +114,12 @@ esp_err_t i2c_write(void * i2c_handler_context, const uint8_t* buffer, uint8_t b
 	i2c_context_t * context = (i2c_context_t *) i2c_handler_context;
 
 #if I2C_DEBUG_OUTPUT
-	ESP_LOGI(LOG_I2C, "i2c_write sending buffer to addr %02x", context->addr);
-	ESP_LOG_BUFFER_HEXDUMP(LOG_I2C, buffer, buffer_size, ESP_LOG_INFO);
+	LOGI(LOG_I2C, "i2c_write sending buffer to addr %02x", context->addr);
+	LOG_BUFFER_HEXDUMP(LOG_I2C, buffer, buffer_size, ESP_LOG_INFO);
 #endif
 
 	if (xSemaphoreTake(i2c_mutex, I2C_MUTEX_AWAIT) != pdTRUE) {
-		ESP_LOGE(LOG_I2C, "i2c_write addr_id %d take mutex timeout", context->addr);
+		LOGE(LOG_I2C, "i2c_write addr_id %d take mutex timeout", context->addr);
 		return ESP_ERR_TIMEOUT;
 	}
 
@@ -134,14 +134,14 @@ esp_err_t i2c_write_read(void * i2c_handler_context, const uint8_t* write_buffer
 	i2c_context_t * context = (i2c_context_t *) i2c_handler_context;
 
 #if I2C_DEBUG_OUTPUT
-	ESP_LOGI(LOG_I2C, "i2c_write_read send buffer to addr %02x", context->addr);
-	ESP_LOG_BUFFER_HEXDUMP(LOG_I2C, write_buffer, write_buffer_size, ESP_LOG_INFO);
+	LOGI(LOG_I2C, "i2c_write_read send buffer to addr %02x", context->addr);
+	LOG_BUFFER_HEXDUMP(LOG_I2C, write_buffer, write_buffer_size, ESP_LOG_INFO);
 #endif
 
 	memset(read_buffer, 0xAB, read_buffer_size);
 
 	if (xSemaphoreTake(i2c_mutex, I2C_MUTEX_AWAIT) != pdTRUE) {
-		ESP_LOGE(LOG_I2C, "i2c_write_read take mutex timeout for address %d", context->addr);
+		LOGE(LOG_I2C, "i2c_write_read take mutex timeout for address %d", context->addr);
 		return ESP_ERR_TIMEOUT;
 	}
 
@@ -151,8 +151,8 @@ esp_err_t i2c_write_read(void * i2c_handler_context, const uint8_t* write_buffer
 
 #if I2C_DEBUG_OUTPUT
 	if (res == ESP_OK) {
-		ESP_LOGI(LOG_I2C, "i2c_write_read received buffer from addr %02x", context->addr);
-		ESP_LOG_BUFFER_HEXDUMP(LOG_I2C, read_buffer, read_buffer_size, ESP_LOG_INFO);
+		LOGI(LOG_I2C, "i2c_write_read received buffer from addr %02x", context->addr);
+		LOG_BUFFER_HEXDUMP(LOG_I2C, read_buffer, read_buffer_size, ESP_LOG_INFO);
 	}
 #endif
 
