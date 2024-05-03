@@ -20,7 +20,7 @@ uint8_t mqtt_healthcheck_received_counter = 0;
 
 void mqtt_healthcheck_events(const char * data, void *) {
 	if (strcmp(data, "restart") == 0) {
-		ESP_LOGE(LOG_MQTT, "Healthcheck received %s command. Restart!", data);
+		LOGE(LOG_MQTT, "Healthcheck received %s command. Restart!", data);
 		esp_restart();
 	} else {
 		mqtt_healthcheck_received_counter = atoi(data);
@@ -31,12 +31,12 @@ void mqtt_healthcheck_task(void* arg) {
 	if (mqtt_healthcheck_sended_counter == mqtt_healthcheck_received_counter) {
 		mqtt_healthcheck_errors_count = 0;
 	} else {
-		ESP_LOGW(LOG_MQTT, "Healthcheck error [%d]: mistmatch counters: sended (%d) != last received (%d)", mqtt_healthcheck_errors_count, mqtt_healthcheck_sended_counter, mqtt_healthcheck_received_counter);
+		LOGW(LOG_MQTT, "Healthcheck error [%d]: mistmatch counters: sended (%d) != last received (%d)", mqtt_healthcheck_errors_count, mqtt_healthcheck_sended_counter, mqtt_healthcheck_received_counter);
 		mqtt_healthcheck_errors_count++;
 	}
 
 	if (mqtt_healthcheck_errors_count > MQTT_HEALTHCHECK_MAX_ERRORS_COUNT) {
-		ESP_LOGE(LOG_MQTT, "Healthcheck ERROR: counter == %d. Restart!", mqtt_healthcheck_errors_count);
+		LOGE(LOG_MQTT, "Healthcheck ERROR: counter == %d. Restart!", mqtt_healthcheck_errors_count);
 		esp_restart();
 	}
 

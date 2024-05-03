@@ -26,23 +26,23 @@ esp_err_t uart_core_init(const char * tag, uint8_t port, uint8_t tx, uint8_t rx)
 			PMS7003_DRIVER_BUF_SIZE, PMS7003_DRIVER_BUF_SIZE,
 			PMS7003_QUEUE_SIZE, NULL, intr_alloc_flags);
 	if (res) {
-		ESP_LOGE(tag, "uart_driver_install error: %04X", res);
+		LOGE(tag, "uart_driver_install error: %04X", res);
 		return res;
 	}
 
-	ESP_LOGI(tag, "uart_set_pin OK");
+	LOGI(tag, "uart_set_pin OK");
 
 	res = uart_param_config(port, &uart_config);
 	if (res) {
-		ESP_LOGE(tag, "uart_param_config error: %04X", res);
+		LOGE(tag, "uart_param_config error: %04X", res);
 		return res;
 	}
 
-	ESP_LOGI(tag, "uart_param_config OK");
+	LOGI(tag, "uart_param_config OK");
 
 	res = uart_set_pin(port, tx, rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 	if (res) {
-		ESP_LOGE(tag, "uart_set_pin error: %04X", res);
+		LOGE(tag, "uart_set_pin error: %04X", res);
 		return res;
 	}
 
@@ -61,7 +61,7 @@ esp_err_t uart_core_send_buffer(const char * tag, uint8_t port, const uint8_t * 
 
 	int res = uart_write_bytes(port, send, send_size);
 	if (res <= 0) {
-		ESP_LOGE(tag, "Cant send data to device");
+		LOGE(tag, "Cant send data to device");
 		return ESP_FAIL;
 	}
 
@@ -77,7 +77,7 @@ esp_err_t uart_core_send_buffer(const char * tag, uint8_t port, const uint8_t * 
 	uint8_t reply_index = 0;
 	for (uint8_t i = 0; i<=await; i++) {
 		if (i == await) {
-			ESP_LOGE(tag, "Timeout awaiting for a data from device.");
+			LOGE(tag, "Timeout awaiting for a data from device.");
 			return ESP_ERR_TIMEOUT;
 		}
 

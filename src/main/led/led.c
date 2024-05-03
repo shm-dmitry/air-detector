@@ -47,7 +47,7 @@ void led_commands(const char * data, void *) {
 		if (invptr == NULL || invptr == rgbs + strlen(rgbs)) {
 			led_set_color(rgb);
 		} else {
-			ESP_LOGE(LOG_LED, "Cant parse RGB color %s. Bad char at position %d", rgbs, (int)(invptr - rgbs));
+			LOGE(LOG_LED, "Cant parse RGB color %s. Bad char at position %d", rgbs, (int)(invptr - rgbs));
 		}
 	} else if (strcmp(type, "set_night_light_color") == 0) {
 		char * rgbs = cJSON_GetStringValue(cJSON_GetObjectItem(root, "rgb"));
@@ -80,7 +80,7 @@ static void led_sender_task(void* arg) {
 
 		uint8_t * buffer = (uint8_t *)&value;
 /*
-		ESP_LOGI(LOG_LED, "Sending [ %02X %02X %02X %02X ]",
+		LOGI(LOG_LED, "Sending [ %02X %02X %02X %02X ]",
 				buffer[0],
 				buffer[1],
 				buffer[2],
@@ -138,13 +138,13 @@ void led_init() {
 
     esp_err_t res = rmt_new_tx_channel(&tx_chan_config, &tx_channel);
     if (res) {
-		ESP_LOGE(LOG_LED, "rmt_new_tx_channel error: %d", res);
+		LOGE(LOG_LED, "rmt_new_tx_channel error: %d", res);
 		return;
     }
 
     res = rmt_enable(tx_channel);
     if (res) {
-		ESP_LOGE(LOG_LED, "rmt_enable error: %d", res);
+		LOGE(LOG_LED, "rmt_enable error: %d", res);
 		return;
     }
 
@@ -158,7 +158,7 @@ void led_init() {
 
 	led_set_color(0);
 
-    ESP_LOGI(LOG_LED, "LED initialized");
+    LOGI(LOG_LED, "LED initialized");
 }
 
 void led_update_color() {
@@ -174,7 +174,7 @@ void led_update_color() {
 	uint8_t r = temp[2];
 	uint8_t w = temp[3];
 
-	ESP_LOGI(LOG_LED, "LED: R = %02X; G = %02X; B = %02X; W = %02X", r, g, b, w);
+	LOGI(LOG_LED, "LED: R = %02X; G = %02X; B = %02X; W = %02X", r, g, b, w);
 
 	wrgb = 0;
 

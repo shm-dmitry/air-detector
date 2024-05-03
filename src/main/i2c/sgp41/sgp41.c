@@ -57,10 +57,10 @@ void sgp41_timer_apply_correction_function(void* arg) {
 void sgp41_init() {
 	esp_err_t err = sgp41_api_init();
 	if (err != 0) {
-		ESP_LOGE(LOG_SGP41, "Cant initialize SGP41: %02X", err);
+		LOGE(LOG_SGP41, "Cant initialize SGP41: %02X", err);
 		return;
 	} else {
-		ESP_LOGI(LOG_SGP41, "SGP41 initialized");
+		LOGI(LOG_SGP41, "SGP41 initialized");
 	}
 
 	esp_timer_create_args_t periodic_timer_args = {

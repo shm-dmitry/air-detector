@@ -87,6 +87,8 @@ void app_main(void)
 
 	mqtt_start();
 
+	LOGI(LOG_MAIN, "Application started");
+
 	while(true) {
 		vTaskDelay(1000 / portTICK_PERIOD_MS);
 	}

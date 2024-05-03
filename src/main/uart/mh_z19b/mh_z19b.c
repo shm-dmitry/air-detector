@@ -49,17 +49,17 @@ void mhz19b_init() {
 	res = mhz19b_send_buffer(COMMAND_MHZ19_RANGE_5000, NULL);
 
 	if (res) {
-		ESP_LOGE(LOG_MHZ19B, "mh_z19b_send_buffer(range) error: %04X", res);
+		LOGE(LOG_MHZ19B, "mh_z19b_send_buffer(range) error: %04X", res);
 		return;
 	} else {
-		ESP_LOGI(LOG_MHZ19B, "mh_z19b_send_buffer(range) OK");
+		LOGI(LOG_MHZ19B, "mh_z19b_send_buffer(range) OK");
 	}
 
 	vTaskDelay(100 / portTICK_PERIOD_MS);
 
 	res = mhz19b_autocalibrate(false);
 	if (res) {
-		ESP_LOGE(LOG_MHZ19B, "mh_z19b_autocalibrate(false) error: %04X", res);
+		LOGE(LOG_MHZ19B, "mh_z19b_autocalibrate(false) error: %04X", res);
 	}
 
 	mqtt_subscribe(CONFIG_MHZ19B_TOPIC_COMMAND, mhz19b_commands, NULL);
@@ -79,7 +79,7 @@ esp_err_t mhz19b_read(uint16_t * co2) {
 
 	esp_err_t res = mhz19b_send_buffer(COMMAND_MHZ19_READ_VALUE, buffer);
 	if (res) {
-		ESP_LOGE(LOG_MHZ19B, "mh_z19b_read error: %02X", res);
+		LOGE(LOG_MHZ19B, "mh_z19b_read error: %02X", res);
 		return res;
 	}
 
@@ -109,17 +109,17 @@ uint8_t mhz19b_crc(const uint8_t * buffer) {
 
 esp_err_t mhz19b_validate(const uint8_t * send, const uint8_t * reply) {
 	if (reply[0] != 0xFF) {
-		ESP_LOGE(LOG_MHZ19B, "Invalid response from device (bad magic byte) %02X != 0xFF", reply[0]);
+		LOGE(LOG_MHZ19B, "Invalid response from device (bad magic byte) %02X != 0xFF", reply[0]);
 		return ESP_ERR_INVALID_RESPONSE;
 	}
 	if (reply[1] != send[2]) {
-		ESP_LOGE(LOG_MHZ19B, "Invalid response from device (bad command) %02X != %02X", reply[1], send[0]);
+		LOGE(LOG_MHZ19B, "Invalid response from device (bad command) %02X != %02X", reply[1], send[0]);
 		return ESP_ERR_INVALID_RESPONSE;
 	}
 
 	uint8_t crc = mhz19b_crc(reply);
 	if (reply[8] != crc) {
-		ESP_LOGE(LOG_MHZ19B, "Invalid response from device (bad crc : %02X != %02X)", reply[8], crc);
+		LOGE(LOG_MHZ19B, "Invalid response from device (bad crc : %02X != %02X)", reply[8], crc);
 		return ESP_ERR_INVALID_CRC;
 	}
 

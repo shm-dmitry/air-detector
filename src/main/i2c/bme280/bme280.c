@@ -18,7 +18,7 @@ void bme280_timer_exec_function(void* arg) {
 		return;
 	}
 
-	ESP_LOGI(LOG_BME280, "Temperature: %f; Humidity: %f%%", data.temperature, data.humidity);
+	LOGI(LOG_BME280, "Temperature: %f; Humidity: %f%%", data.temperature, data.humidity);
 
 	cJSON *root = cJSON_CreateObject();
 	cJSON_AddNumberToObject(root, "temperature", data.temperature);
@@ -37,10 +37,10 @@ void bme280_timer_exec_function(void* arg) {
 void bme280_init() {
 	esp_err_t res = bme280_init_driver();
 	if (res != ESP_OK) {
-		ESP_LOGE(LOG_BME280, "BME280 - cant initialize driver. Error %04X", res);
+		LOGE(LOG_BME280, "BME280 - cant initialize driver. Error %04X", res);
 		return;
 	} else {
-		ESP_LOGI(LOG_BME280, "BME280 driver initialized");
+		LOGI(LOG_BME280, "BME280 driver initialized");
 	}
 
 	esp_timer_create_args_t periodic_timer_args = {

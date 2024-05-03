@@ -44,8 +44,8 @@ void touchpad_callback_func(uint8_t state, uint8_t click_index) {
 void touchpad_init() {
 	esp_err_t res = touchpad_setup(touchpad_callback_func);
 	if (res == ESP_OK) {
-		ESP_LOGI(LOG_TOUCHPAD, "Touchpad driver initialized");
+		LOGI(LOG_TOUCHPAD, "Touchpad driver initialized");
 	} else {
-		ESP_LOGI(LOG_TOUCHPAD, "Cant initialize touchpad driver: %04X", res);
+		LOGI(LOG_TOUCHPAD, "Cant initialize touchpad driver: %04X", res);
 	}
 }

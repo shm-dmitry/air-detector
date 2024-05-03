@@ -27,9 +27,9 @@ void fan_pwm_commands(const char * data, void *) {
 void fanpwm_init() {
 	esp_err_t res = fan_pwm_port_init();
 	if (res == ESP_OK) {
-		ESP_LOGI(LOG_FANPWM, "FAN PWM driver initialized");
+		LOGI(LOG_FANPWM, "FAN PWM driver initialized");
 	} else {
-		ESP_LOGI(LOG_FANPWM, "Cant initlize FAN PWM driver: %04X", res);
+		LOGI(LOG_FANPWM, "Cant initlize FAN PWM driver: %04X", res);
 	}
 
 	mqtt_subscribe(CONFIG_FANPWM_TOPIC_COMMAND, fan_pwm_commands, NULL);

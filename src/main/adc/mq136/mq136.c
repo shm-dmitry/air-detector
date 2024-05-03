@@ -21,7 +21,7 @@
 double mq136_adc2rsro(uint16_t adc, uint16_t calibration_value) {
 	double temp = (double)adc * (MQ136_AM - (double)calibration_value);
 	if (temp > -0.001 && temp < 0.001) { // check for a division-by-zero
-		ESP_LOGW(LOG_MQ136, "div by zero. ADC = %d", adc);
+		LOGW(LOG_MQ136, "div by zero. ADC = %d", adc);
 		return 0;
 	}
 
@@ -55,13 +55,13 @@ double mq136_apply_compensation(double value, int8_t compensation_t, uint8_t com
 	double compensation = delta_t - delta_h;
 
 	if (compensation < 0.5 || compensation > 2) {
-		ESP_LOGE(LOG_MQ136, "Bad compensations: H = %d, T = %d; rs/ro = %f, delta_h = %f; delta_t = %f; total compensation = %f",
+		LOGE(LOG_MQ136, "Bad compensations: H = %d, T = %d; rs/ro = %f, delta_h = %f; delta_t = %f; total compensation = %f",
 				compensation_h, compensation_t, value, delta_h, delta_t, compensation);
 		*success = false;
 		return value;
 	} else {
 #if MQ136_DEBUG_COMPENSATIONS
-		ESP_LOGI(LOG_MQ136, "Apply compensations: H = %d, T = %d; rs/ro = %f, delta_h = %f; delta_t = %f; total compensation = %f, result = %f",
+		LOGI(LOG_MQ136, "Apply compensations: H = %d, T = %d; rs/ro = %f, delta_h = %f; delta_t = %f; total compensation = %f, result = %f",
 				_h, _t, value, delta_h, delta_t, compensation, (value / compensation));
 #endif
 	}

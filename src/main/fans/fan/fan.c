@@ -43,7 +43,7 @@ void fan_init() {
 
 	esp_err_t res = gpio_config(&config);
 	if (res) {
-		ESP_LOGI(LOG_FAN, "Cant init GPIO. error %d", res);
+		LOGI(LOG_FAN, "Cant init GPIO. error %d", res);
 		return;
 	}
 
@@ -56,9 +56,9 @@ void fan_init() {
 esp_err_t fan_start() {
 	esp_err_t res = gpio_set_level(CONFIG_FAN_GPIO, 1);
 	if (res) {
-		ESP_LOGE(LOG_FAN, "Cant set HIGH level on pin %d: %d", CONFIG_FAN_GPIO, res);
+		LOGE(LOG_FAN, "Cant set HIGH level on pin %d: %d", CONFIG_FAN_GPIO, res);
 	} else {
-		ESP_LOGI(LOG_FAN, "HIGH level on pin %d activated.", CONFIG_FAN_GPIO);
+		LOGI(LOG_FAN, "HIGH level on pin %d activated.", CONFIG_FAN_GPIO);
 	}
 
 	return res;
@@ -67,9 +67,9 @@ esp_err_t fan_start() {
 esp_err_t fan_stop() {
 	esp_err_t res = gpio_set_level(CONFIG_FAN_GPIO, 0);
 	if (res) {
-		ESP_LOGE(LOG_FAN, "Cant set LOW level on pin %d: %d", CONFIG_FAN_GPIO, res);
+		LOGE(LOG_FAN, "Cant set LOW level on pin %d: %d", CONFIG_FAN_GPIO, res);
 	} else {
-		ESP_LOGI(LOG_FAN, "LOW level on pin %d activated.", CONFIG_FAN_GPIO);
+		LOGI(LOG_FAN, "LOW level on pin %d activated.", CONFIG_FAN_GPIO);
 	}
 
 	return res;

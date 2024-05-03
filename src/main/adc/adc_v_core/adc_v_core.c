@@ -57,14 +57,14 @@ void adc_v_core_calibrate_execute(adc_v_core_context_t * context, uint16_t adc, 
 
 bool adc_v_core_adc2result(adc_v_core_context_t * context, uint16_t adc, bool autocompensation, double * result) {
 	if (context->calibration_value == ADC_V_CORE_CALIBRATION_NOVALUE || context->calibration_value == 0) {
-		ESP_LOGW(context->tag, "No calibration. ADC = %d", adc);
+		LOGW(context->tag, "No calibration. ADC = %d", adc);
 		return false;
 	}
 
 	double rs_ro = context->functions.adc2rsro(adc, context->calibration_value);
 
 #if ADC_V_CORE_DEBUG_CALCULATION
-	ESP_LOGI(context->tag, "Before compensations: ADC = %d -> rs/ro = %f", adc, rs_ro);
+	LOGI(context->tag, "Before compensations: ADC = %d -> rs/ro = %f", adc, rs_ro);
 #endif
 
 	int8_t _t = context->compensation_t;
@@ -77,7 +77,7 @@ bool adc_v_core_adc2result(adc_v_core_context_t * context, uint16_t adc, bool au
 	}
 
 #if ADC_V_CORE_DEBUG_CALCULATION
-	ESP_LOGI(context->tag, "After compensations: ADC = %d -> rs/ro = %f", adc, rs_ro);
+	LOGI(context->tag, "After compensations: ADC = %d -> rs/ro = %f", adc, rs_ro);
 #endif
 
 	double _result = context->functions.rsro2value(rs_ro);
@@ -96,7 +96,7 @@ bool adc_v_core_adc2result(adc_v_core_context_t * context, uint16_t adc, bool au
 	}
 
 #if ADC_V_CORE_DEBUG_CALCULATION
-	ESP_LOGI(context->tag, "Result: %f ppm for ADC = %d and rs/ro = %f", _result, adc, rs_ro);
+	LOGI(context->tag, "Result: %f ppm for ADC = %d and rs/ro = %f", _result, adc, rs_ro);
 #endif
 
 	*result = _result;
@@ -105,14 +105,14 @@ bool adc_v_core_adc2result(adc_v_core_context_t * context, uint16_t adc, bool au
 
 void adc_v_core_calibrate(adc_v_core_context_t * context) {
 	if (!context->functions.is_startup_allowed()) {
-		ESP_LOGE(context->tag, "Calibration not allowed");
+		LOGE(context->tag, "Calibration not allowed");
 		return;
 	}
 
 	int value = 0;
 	esp_err_t res = adc_oneshot_read(adc_get_channel(), (adc_channel_t) (context->adc_channel), &value);
 	if (res != ESP_OK) {
-		ESP_LOGE(context->tag, "Cant read ADC value, err=%04X", res);
+		LOGE(context->tag, "Cant read ADC value, err=%04X", res);
 		return;
 	}
 
@@ -123,7 +123,7 @@ void adc_v_core_calibrate(adc_v_core_context_t * context) {
 	uint8_t _h = context->compensation_h;
 	if (_t == ADC_V_CORE_COMPENSATION_NOVALUE || _h == ADC_V_CORE_COMPENSATION_NOVALUE) {
 		adc_v_core_nws_write(context->tag, context->calibration_value);
-		ESP_LOGW(context->tag, "No data for compensaction.");
+		LOGW(context->tag, "No data for compensaction.");
 		return;
 	}
 
@@ -135,7 +135,7 @@ bool adc_v_core_read_value(adc_v_core_context_t * context, double * result) {
 	int value = 0;
 	esp_err_t res = adc_oneshot_read(adc_get_channel(), (adc_channel_t) (context->adc_channel), &value);
 	if (res != ESP_OK) {
-		ESP_LOGE(context->tag, "Cant read ADC value. Error %04X", res);
+		LOGE(context->tag, "Cant read ADC value. Error %04X", res);
 		return false;
 	}
 
@@ -162,7 +162,7 @@ void adc_v_core_calibrate_execute(adc_v_core_context_t * context, uint16_t adc, 
 
 		if (!adc_v_core_adc2result(context, adc, false, &result)) {
 			context->calibration_value = adc;
-			ESP_LOGE(context->tag, "Calibration - error in adc_v_core_adc2result");
+			LOGE(context->tag, "Calibration - error in adc_v_core_adc2result");
 			return;
 		}
 
@@ -170,7 +170,7 @@ void adc_v_core_calibrate_execute(adc_v_core_context_t * context, uint16_t adc, 
 			(findmin && result < 0.5) ||
 			(!findmin && result > (((double)context->calibrate_find_value_x10) / 10.0 - 0.5))
 				) {
-			ESP_LOGI(context->tag, "Calibration - compensation applied. Result: %f; A0: %d -> %d", result, adc, i);
+			LOGI(context->tag, "Calibration - compensation applied. Result: %f; A0: %d -> %d", result, adc, i);
 			return;
 		}
 
@@ -183,7 +183,7 @@ void adc_v_core_calibrate_execute(adc_v_core_context_t * context, uint16_t adc, 
 		}
 	}
 
-	ESP_LOGW(context->tag, "Calibration - compensation applied partically. value = %f; A0: %d -> %d", found_value, adc, found_value_a0);
+	LOGW(context->tag, "Calibration - compensation applied partically. value = %f; A0: %d -> %d", found_value, adc, found_value_a0);
 	context->calibration_value = found_value_a0;
 }
 
@@ -241,11 +241,11 @@ void adc_v_core_init(const adc_v_core_setup_t * settings) {
     };
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_get_channel(), (adc_channel_t) buildconfig.adc_channel, &config));
 
-    ESP_LOGI(buildconfig.tag, "ADC initialized");
+    LOGI(buildconfig.tag, "ADC initialized");
 
     adc_v_core_context_t * context = malloc(sizeof(adc_v_core_context_t));
     if (context == NULL) {
-        ESP_LOGE(buildconfig.tag, "OOM: context");
+        LOGE(buildconfig.tag, "OOM: context");
     	return;
     }
 
@@ -253,7 +253,7 @@ void adc_v_core_init(const adc_v_core_setup_t * settings) {
 
     context->name = (char *)malloc(strlen(buildconfig.name) + 1);
     if (context->name == NULL) {
-        ESP_LOGE(buildconfig.tag, "OOM: name");
+        LOGE(buildconfig.tag, "OOM: name");
     	return;
     }
     strcpy(context->name, buildconfig.name);
@@ -285,9 +285,9 @@ void adc_v_core_init(const adc_v_core_setup_t * settings) {
     context->calibrate_find_value_x10 = settings->calibrate_find_value_x10;
 
     if (context->calibration_value != ADC_V_CORE_CALIBRATION_NOVALUE) {
-    	ESP_LOGI(buildconfig.tag, "Calibration value: A0 = %d", context->calibration_value);
+    	LOGI(buildconfig.tag, "Calibration value: A0 = %d", context->calibration_value);
     } else {
-    	ESP_LOGW(buildconfig.tag, "No calibration value. Use type='calibrate' request");
+    	LOGW(buildconfig.tag, "No calibration value. Use type='calibrate' request");
     }
 
 	esp_timer_create_args_t periodic_timer_args = {
@@ -305,7 +305,7 @@ void adc_v_core_init(const adc_v_core_setup_t * settings) {
 	adc_v_core_init_auto_compensation(context);
 #endif
 
-    ESP_LOGI(buildconfig.tag, "Driver initialized");
+    LOGI(buildconfig.tag, "Driver initialized");
 }
 
 void adc_v_core_init_auto_compensation(adc_v_core_context_t * context) {

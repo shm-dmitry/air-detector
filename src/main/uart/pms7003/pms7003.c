@@ -49,7 +49,7 @@ void pms7003_init() {
 
 	res = gpio_config(&config);
 	if (res) {
-		ESP_LOGI(LOG_FAN, "Cant init GPIO. error %d", res);
+		LOGI(LOG_FAN, "Cant init GPIO. error %d", res);
 		return;
 	}
 
@@ -57,7 +57,7 @@ void pms7003_init() {
 
 	res = pms7003_wakeup();
 	if (res) {
-		ESP_LOGE(LOG_PMS7003, "Cant wakeup sensor: %d", res);
+		LOGE(LOG_PMS7003, "Cant wakeup sensor: %d", res);
 		return;
 	}
 
@@ -65,7 +65,7 @@ void pms7003_init() {
 
 	res = pms7003_set_active(true);
 	if (res) {
-		ESP_LOGE(LOG_PMS7003, "Cant set sensor state == active: %d", res);
+		LOGE(LOG_PMS7003, "Cant set sensor state == active: %d", res);
 		return;
 	}
 
@@ -91,11 +91,11 @@ esp_err_t pms7003_wakeup() {
 
 esp_err_t pms7003_validate(const uint8_t * send, const uint8_t * reply) {
 	if (reply[0] != 0x42) {
-		ESP_LOGE(LOG_PMS7003, "pms7003_send_buffer  Invalid response: bad byte#0 = %02X", reply[0]);
+		LOGE(LOG_PMS7003, "pms7003_send_buffer  Invalid response: bad byte#0 = %02X", reply[0]);
 		return ESP_ERR_INVALID_RESPONSE;
 	}
 	if (reply[1] != 0x4d) {
-		ESP_LOGE(LOG_PMS7003, "Invalid response: bad byte#1 = %02X", reply[1]);
+		LOGE(LOG_PMS7003, "Invalid response: bad byte#1 = %02X", reply[1]);
 		return ESP_ERR_INVALID_RESPONSE;
 	}
 
@@ -106,7 +106,7 @@ esp_err_t pms7003_validate(const uint8_t * send, const uint8_t * reply) {
 	}
 
 	if ((reply[PMS7003_BUF_SIZE - 2] << 8 | reply[PMS7003_BUF_SIZE - 1]) != crc) {
-		ESP_LOGE(LOG_PMS7003, "Invalid response: bad CRC : %02X%02X != %04X", reply[PMS7003_BUF_SIZE - 2], reply[PMS7003_BUF_SIZE - 1], crc);
+		LOGE(LOG_PMS7003, "Invalid response: bad CRC : %02X%02X != %04X", reply[PMS7003_BUF_SIZE - 2], reply[PMS7003_BUF_SIZE - 1], crc);
 		return ESP_ERR_INVALID_CRC;
 	}
 

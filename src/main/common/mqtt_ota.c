@@ -19,7 +19,7 @@ void mqtt_ota_upgrade(void * arg) {
 		.keep_alive_enable = false,
 	};
 
-	ESP_LOGI(LOG_OTA, "Start OTA upgrade from URL %s", config.url);
+	LOGI(LOG_OTA, "Start OTA upgrade from URL %s", config.url);
 
 	esp_https_ota_config_t ota_config = {
 		.http_config = &config,
@@ -27,10 +27,10 @@ void mqtt_ota_upgrade(void * arg) {
 
     esp_err_t ret = esp_https_ota(&ota_config);
     if (ret == ESP_OK) {
-        ESP_LOGI(LOG_OTA, "OTA Succeed, Rebooting...");
+        LOGI(LOG_OTA, "OTA Succeed, Rebooting...");
         esp_restart();
     } else {
-        ESP_LOGE(LOG_OTA, "Firmware upgrade failed with code %04x", ret);
+        LOGE(LOG_OTA, "Firmware upgrade failed with code %04x", ret);
     }
 
     vTaskDelete(NULL);
@@ -60,13 +60,13 @@ void mqtt_ota_on_started() {
     if (esp_ota_get_state_partition(running, &ota_state) == ESP_OK) {
         if (ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
 			esp_ota_mark_app_valid_cancel_rollback();
-			ESP_LOGI(LOG_OTA, "OTA upgrade finished");
+			LOGI(LOG_OTA, "OTA upgrade finished");
         }
     }
 
 	esp_app_desc_t running_app_info;
 	if (esp_ota_get_partition_description(running, &running_app_info) == ESP_OK) {
-		ESP_LOGI(LOG_OTA, "Running firmware version: %s", running_app_info.version);
+		LOGI(LOG_OTA, "Running firmware version: %s", running_app_info.version);
 		mqtt_publish(CONFIG_MQTT_OTA_VERSION_TOPIC, running_app_info.version);
 	}
 #endif

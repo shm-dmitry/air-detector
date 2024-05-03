@@ -18,7 +18,7 @@ static void fan_pwm_task(void* arg) {
 	while (true) {
 		esp_err_t res = gpio_set_level(CONFIG_FANPWM_GPIO, 1);
 		if (res) {
-			ESP_LOGE(LOG_FANPWM, "Cant set HIGH level on pin %d: %d", CONFIG_FANPWM_GPIO, res);
+			LOGE(LOG_FANPWM, "Cant set HIGH level on pin %d: %d", CONFIG_FANPWM_GPIO, res);
 			fan_pwm_task_handle = NULL;
 			vTaskDelete(NULL);
 		}
@@ -27,7 +27,7 @@ static void fan_pwm_task(void* arg) {
 
 		res = gpio_set_level(CONFIG_FANPWM_GPIO, 0);
 		if (res) {
-			ESP_LOGE(LOG_FANPWM, "Cant set LOW level on pin %d: %d", CONFIG_FANPWM_GPIO, res);
+			LOGE(LOG_FANPWM, "Cant set LOW level on pin %d: %d", CONFIG_FANPWM_GPIO, res);
 			fan_pwm_task_handle = NULL;
 			vTaskDelete(NULL);
 		}
@@ -47,11 +47,11 @@ esp_err_t fan_pwm_port_init() {
 
 	esp_err_t res = gpio_config(&config);
 	if (res) {
-		ESP_LOGI(LOG_FANPWM, "Cant init GPIO. error %d", res);
+		LOGI(LOG_FANPWM, "Cant init GPIO. error %d", res);
 		return res;
 	}
 
-	ESP_LOGI(LOG_FANPWM, "Driver initialized on port %d", CONFIG_FANPWM_GPIO);
+	LOGI(LOG_FANPWM, "Driver initialized on port %d", CONFIG_FANPWM_GPIO);
 
 	fan_pwm_set_percent(fan_pwm_nws_read());
 
@@ -73,18 +73,18 @@ esp_err_t fan_pwm_set_percent(uint8_t percent) {
 	if (percent == 100) {
 		esp_err_t res = gpio_set_level(CONFIG_FANPWM_GPIO, 1);
 		if (res) {
-			ESP_LOGE(LOG_FANPWM, "Cant set HIGH level on pin %d: %d", CONFIG_FANPWM_GPIO, res);
+			LOGE(LOG_FANPWM, "Cant set HIGH level on pin %d: %d", CONFIG_FANPWM_GPIO, res);
 		} else {
-			ESP_LOGI(LOG_FANPWM, "HIGH level on pin %d activated.", CONFIG_FANPWM_GPIO);
+			LOGI(LOG_FANPWM, "HIGH level on pin %d activated.", CONFIG_FANPWM_GPIO);
 		}
 
 		return res;
 	} else {
 		esp_err_t res = gpio_set_level(CONFIG_FANPWM_GPIO, 0);
 		if (res) {
-			ESP_LOGE(LOG_FANPWM, "Cant set LOW level on pin %d: %d", CONFIG_FANPWM_GPIO, res);
+			LOGE(LOG_FANPWM, "Cant set LOW level on pin %d: %d", CONFIG_FANPWM_GPIO, res);
 		} else {
-			ESP_LOGI(LOG_FANPWM, "HIGH level on pin %d activated.", CONFIG_FANPWM_GPIO);
+			LOGI(LOG_FANPWM, "HIGH level on pin %d activated.", CONFIG_FANPWM_GPIO);
 		}
 	}
 

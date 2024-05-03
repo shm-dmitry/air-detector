@@ -29,14 +29,14 @@ uint8_t light_read_value() {
 	int value = 0;
 	esp_err_t res = adc_oneshot_read(adc_get_channel(), (adc_channel_t) CONFIG_LIGHT_ADC_CHANNEL, &value);
 	if (res != ESP_OK) {
-		ESP_LOGE(LOG_LIGHT, "Cant read ADC value. Error %04X", res);
+		LOGE(LOG_LIGHT, "Cant read ADC value. Error %04X", res);
 		return LIGHT_NOVALUE;
 	}
 
 	uint8_t result = (uint8_t) LIGHT_ADC_TO_RESULT(value);
 
 #if LIGHT_DEBUG
-	ESP_LOGI(LOG_LIGHT, "ADC value = %d; Result = %d%%", value, result);
+	LOGI(LOG_LIGHT, "ADC value = %d; Result = %d%%", value, result);
 #endif
 
 	return result;
@@ -65,7 +65,7 @@ void light_init() {
 	};
 	ESP_ERROR_CHECK(adc_oneshot_config_channel(adc_get_channel(), (adc_channel_t) CONFIG_LIGHT_ADC_CHANNEL, &config));
 
-    ESP_LOGI(LOG_LIGHT, "ADC initialized");
+    LOGI(LOG_LIGHT, "ADC initialized");
 
 	esp_timer_create_args_t periodic_timer_args = {
 		.callback = &light_timer_exec_function,
@@ -77,5 +77,5 @@ void light_init() {
 	ESP_ERROR_CHECK(esp_timer_create(&periodic_timer_args, &periodic_timer));
 	ESP_ERROR_CHECK(esp_timer_start_periodic(periodic_timer, LIGHT_EXEC_PERIOD));
 
-    ESP_LOGI(LOG_LIGHT, "Driver initialized");
+    LOGI(LOG_LIGHT, "Driver initialized");
 }

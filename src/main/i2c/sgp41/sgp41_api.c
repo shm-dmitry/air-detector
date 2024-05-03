@@ -77,16 +77,16 @@ void sgp41_initializing_task(void *) {
 	uint16_t value = 0;
 	esp_err_t res = sgp41_write_read_buffer(350, SGP41_EXECUTE_SELF_TEST, NULL, 0, &value, 1);
 	if (res != ESP_OK) {
-		ESP_LOGE(LOG_SGP41, "Self test failed: %02X", res);
+		LOGE(LOG_SGP41, "Self test failed: %02X", res);
 		sgp41_init_status = SGP41_INIT_STATUS_ERROR;
 		vTaskDelete(NULL);
 		return;
 	}
 
 	if ((value & 0b00000011) == 0) {
-		ESP_LOGI(LOG_SGP41, "Self test OK");
+		LOGI(LOG_SGP41, "Self test OK");
 	} else {
-		ESP_LOGE(LOG_SGP41, "Self test ERROR %04X", value);
+		LOGE(LOG_SGP41, "Self test ERROR %04X", value);
 		sgp41_init_status = SGP41_INIT_STATUS_ERROR;
 		vTaskDelete(NULL);
 		return;
@@ -101,7 +101,7 @@ void sgp41_initializing_task(void *) {
 			&value,
 			1);
 	if (res != ESP_OK) {
-		ESP_LOGE(LOG_SGP41, "Self test failed: %02X", res);
+		LOGE(LOG_SGP41, "Self test failed: %02X", res);
 		sgp41_init_status = SGP41_INIT_STATUS_ERROR;
 		vTaskDelete(NULL);
 		return;
@@ -133,7 +133,7 @@ void sgp41_set_temp_humidity(int8_t temperature, uint8_t humidity) {
 esp_err_t sgp41_api_init() {
 	sgp41_i2c = i2c_get_handlers(SGP41_I2C_ADDRESS, SGP41_I2C_TIMEOUT);
 	if (sgp41_i2c == NULL) {
-		ESP_LOGE(LOG_SGP41, "Cant init I2C for address %d", SGP41_I2C_ADDRESS);
+		LOGE(LOG_SGP41, "Cant init I2C for address %d", SGP41_I2C_ADDRESS);
 		return ESP_ERR_INVALID_STATE;
 	}
 
@@ -142,11 +142,11 @@ esp_err_t sgp41_api_init() {
 	esp_err_t res = sgp41_write_read_buffer(1, SGP41_GET_SERIAL_NUMBER, NULL, 0, buffer, 3);
 
 	if (res) {
-		ESP_LOGE(LOG_SGP41, "Cant read serial number: %02X", res);
+		LOGE(LOG_SGP41, "Cant read serial number: %02X", res);
 		sgp41_init_status = SGP41_INIT_STATUS_ERROR;
 		return res;
 	} else {
-		ESP_LOGI(LOG_SGP41, "Sensor serial number: %04X.%04X.%04X", buffer[0], buffer[1], buffer[2]);
+		LOGI(LOG_SGP41, "Sensor serial number: %04X.%04X.%04X", buffer[0], buffer[1], buffer[2]);
 	}
 
 	sgp41_init_status = SGP41_INIT_STATUS_INITIALIZING;
@@ -175,7 +175,7 @@ void sgp41_ref_to_ticks(uint8_t value, uint8_t * result_byte_1, uint8_t * result
 
 esp_err_t sgp41_read(sgp41_data_t * result) {
 	if (sgp41_init_status != SGP41_INIT_STATUS_INITIALIZED) {
-		ESP_LOGE(LOG_SGP41, "Driver not initialized. Init status == %d", sgp41_init_status);
+		LOGE(LOG_SGP41, "Driver not initialized. Init status == %d", sgp41_init_status);
 		return ESP_FAIL;
 	}
 
@@ -205,7 +205,7 @@ esp_err_t sgp41_read(sgp41_data_t * result) {
 	int32_t resultvalue = SGP41_VALUE_NODATA;
 	GasIndexAlgorithm_process(&sgp41_tvoc, result->tvoc_raw, &resultvalue);
 	if (resultvalue >= SGP41_VALUE_NODATA || resultvalue < 0) {
-		ESP_LOGW(LOG_SGP41, "Bad gas-index for tvoc: %li", resultvalue);
+		LOGW(LOG_SGP41, "Bad gas-index for tvoc: %li", resultvalue);
 		resultvalue = SGP41_VALUE_NODATA;
 	}
 
@@ -214,7 +214,7 @@ esp_err_t sgp41_read(sgp41_data_t * result) {
 	resultvalue = SGP41_VALUE_NODATA;
 	GasIndexAlgorithm_process(&sgp41_nox, result->nox_raw, &resultvalue);
 	if (resultvalue >= SGP41_VALUE_NODATA || resultvalue < 0) {
-		ESP_LOGW(LOG_SGP41, "Bad gas-index for nox: %li", resultvalue);
+		LOGW(LOG_SGP41, "Bad gas-index for nox: %li", resultvalue);
 		resultvalue = SGP41_VALUE_NODATA;
 	}
 
@@ -247,7 +247,7 @@ esp_err_t sgp41_write_read_buffer(
 	}
 
 	if (res) {
-		ESP_LOGE(LOG_SGP41, "Write command %02x%02x [args size: %d] failed: %02X", command[0], command[1], args_buffer_size, res);
+		LOGE(LOG_SGP41, "Write command %02x%02x [args size: %d] failed: %02X", command[0], command[1], args_buffer_size, res);
 		return res;
 	}
 
@@ -263,14 +263,14 @@ esp_err_t sgp41_write_read_buffer(
 
 	res = sgp41_i2c->read(sgp41_i2c->context, temp, buffer_size * 3);
 	if (res) {
-		ESP_LOGE(LOG_SGP41, "Read command %02x%02x failed: %d", command[0], command[1], res);
+		LOGE(LOG_SGP41, "Read command %02x%02x failed: %d", command[0], command[1], res);
 		return res;
 	}
 
 	for (int i = 0; i<buffer_size; i++) {
 		if (sgp41_crc(temp[i * 3], temp[i * 3 + 1]) != temp[i * 3 + 2] &&
 				(temp[i * 3] != 0xFF && temp[i * 3 + 1] != 0xFF && temp[i * 3 + 2] != 0xFF)) {
-			ESP_LOGE(LOG_SGP41, "Read word#%d failed. Invalid crc for [%02X %02X]. %02X != %02X",
+			LOGE(LOG_SGP41, "Read word#%d failed. Invalid crc for [%02X %02X]. %02X != %02X",
 					i,
 					temp[i * 3],
 					temp[i * 3 + 1],

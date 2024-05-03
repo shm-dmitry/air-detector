@@ -53,7 +53,7 @@ double o2a2_apply_compensation(double rsro, int8_t compensation_t, uint8_t compe
 		*success = true;
 	} else {
 		*success = false;
-		ESP_LOGE(LOG_O2A2, "Bad compensations: T = %d; o2_x10 = %f, ; temp_delta = %f",
+		LOGE(LOG_O2A2, "Bad compensations: T = %d; o2_x10 = %f, ; temp_delta = %f",
 				compensation_t, rsro, pc);
 	}
 

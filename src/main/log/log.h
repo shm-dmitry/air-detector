@@ -3,6 +3,30 @@
 
 #include "esp_log.h"
 
+#include "sdkconfig.h"
+
+#define LOG_ALWAYS_ENABLED 0
+
+// PMS7003 shares UART port with USB.
+// I disable logging to ensure some log messages
+// will not decoded by sensor as 'command'
+#if CONFIG_PMS7003_ENABLED && !LOG_ALWAYS_ENABLED
+#undef LOG_ALLOWED
+#define LOG_ALLOWED 0
+#else
+#define LOG_ALLOWED 1
+#endif
+
+#if LOG_ALLOWED
+#define LOGE(tag, format, ...) ESP_LOGE(tag, format, ##__VA_ARGS__)
+#define LOGI(tag, format, ...) ESP_LOGI(tag, format, ##__VA_ARGS__)
+#define LOGW(tag, format, ...) ESP_LOGW(tag, format, ##__VA_ARGS__)
+#else
+#define LOGE(tag, format, ...)
+#define LOGI(tag, format, ...)
+#define LOGW(tag, format, ...)
+#endif
+
 #define LOG_NWS_RW       "nws_rw"
 #define LOG_WIFI         "wifi"
 #define LOG_MQTT		 "mqtt"
@@ -20,5 +44,6 @@
 #define LOG_OTA			 "ota"
 #define LOG_MHZ19B		 "mhz19b"
 #define LOG_PMS7003		 "pms7003"
+#define LOG_MAIN		 "main"
 
 #endif /* MAIN_LOG_LOG_H_ */

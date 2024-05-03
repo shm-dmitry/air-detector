@@ -42,7 +42,7 @@ static void touchpad_process_autocalibration(uint16_t value, bool untouched) {
 			touchpad_calibration_cnt = 0;
 
 #if TOUCHPAD_LOG_VALUES
-			ESP_LOGI(LOG_TOUCHPAD, "Recalibrated to %d", touchpad_threshold);
+			LOGI(LOG_TOUCHPAD, "Recalibrated to %d", touchpad_threshold);
 #endif
 		}
 	} else {
@@ -59,12 +59,12 @@ static uint8_t touchpad_read_value() {
 	}
 
 #if TOUCHPAD_LOG_VALUES
-	ESP_LOGI(LOG_TOUCHPAD, "touch_pad_read_filtered == %d", value);
+	LOGI(LOG_TOUCHPAD, "touch_pad_read_filtered == %d", value);
 #endif
 
 	if (touchpad_onkeydown_retries > TOUCHPAD_MAX_ONKEYDOWN_RETRIES) {
 		touchpad_onkeydown_retries = 0;
-		ESP_LOGI(LOG_TOUCHPAD, "Too many retries on on-key-down mode. Reset threshold");
+		LOGI(LOG_TOUCHPAD, "Too many retries on on-key-down mode. Reset threshold");
 		touchpad_threshold = TOUCHPAD_THRESHOLD_CALC(value);
 		return TOUCHPAD_ERROR;
 	}
@@ -175,38 +175,38 @@ esp_err_t touchpad_setup(touchpad_callback_t callback) {
 
 	esp_err_t res = touch_pad_init();
 	if (res) {
-		ESP_LOGE(LOG_TOUCHPAD, "touch_pad_init error %d", res);
+		LOGE(LOG_TOUCHPAD, "touch_pad_init error %d", res);
 		return res;
 	}
 
 	res = touch_pad_set_fsm_mode(TOUCH_FSM_MODE_TIMER);
 	if (res) {
-		ESP_LOGE(LOG_TOUCHPAD, "touch_pad_set_fsm_mode error %d", res);
+		LOGE(LOG_TOUCHPAD, "touch_pad_set_fsm_mode error %d", res);
 		return res;
 	}
 
 	res = touch_pad_set_voltage(TOUCH_HVOLT_2V7, TOUCH_LVOLT_0V5, TOUCH_HVOLT_ATTEN_1V);
 	if (res) {
-		ESP_LOGE(LOG_TOUCHPAD, "touch_pad_set_voltage error %d", res);
+		LOGE(LOG_TOUCHPAD, "touch_pad_set_voltage error %d", res);
 		return res;
 	}
 
 	res = touch_pad_config(CONFIG_TOUCHPAD_ID, TOUCHPAD_THRESH_NO_USE);
 	if (res) {
-		ESP_LOGE(LOG_TOUCHPAD, "touch_pad_config error %d", res);
+		LOGE(LOG_TOUCHPAD, "touch_pad_config error %d", res);
 		return res;
 	}
 
 	res = touch_pad_filter_start(TOUCHPAD_FILTER_TOUCH_PERIOD);
 	if (res) {
-		ESP_LOGE(LOG_TOUCHPAD, "touch_pad_filter_start error %d", res);
+		LOGE(LOG_TOUCHPAD, "touch_pad_filter_start error %d", res);
 		return res;
 	}
 
 	uint16_t touch_value = 0;
 	res = touch_pad_read_filtered(CONFIG_TOUCHPAD_ID, &touch_value);
 	if (res) {
-		ESP_LOGE(LOG_TOUCHPAD, "touch_pad_read_filtered error %d", res);
+		LOGE(LOG_TOUCHPAD, "touch_pad_read_filtered error %d", res);
 		return res;
 	}
 
