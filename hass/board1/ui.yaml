@@ -1,0 +1,79 @@
+            - type: horizontal-stack
+              cards:
+
+                - type: gauge
+                  entity: sensor.hws_room1_temperature
+                  min: 10
+                  max: 50
+                  name: "Температура"
+
+                - type: gauge
+                  entity: sensor.hws_room1_humidity
+                  min: 0
+                  max: 100
+                  name: "Влажность"
+
+            - type: horizontal-stack
+              cards:
+                - type: gauge
+                  entity: sensor.hws_room1_co2
+                  min: 400
+                  max: 2000
+                  name: "CO2"
+                  severity:
+                      green: 0
+                      yellow: 700
+                      red: 1000
+
+                - type: gauge
+                  entity: sensor.hws_room1_tvoc
+                  min: 0
+                  max: 2000
+                  name: "TVOC"
+                  severity:
+                      green: 0
+                      yellow: 400
+                      red: 700
+
+            - type: horizontal-stack
+              cards:
+                - type: gauge
+                  entity: sensor.hws_room1_co
+                  min: 0
+                  max: 1000
+                  name: "CO"
+                  severity:
+                      green: 0
+                      yellow: 100
+                      red: 200
+
+                - type: gauge
+                  entity: sensor.hws_room1_h2s
+                  min: 0
+                  max: 300
+                  name: "H2S"
+                  severity:
+                      green: 0
+                      yellow: 70
+                      red: 150
+
+                - type: gauge
+                  entity: sensor.hws_room1_o2a2
+                  min: 0
+                  max: 25
+                  name: "O2"
+                  severity:
+                      green: 18
+                      yellow: 15
+                      red: 0
+
+            - type: history-graph
+              refresh_interval: 30
+              hours_to_show: 3
+              entities:
+                - entity: sensor.hws_room1_pm_1_0
+                  name: Пыль 1.0
+                - entity: sensor.hws_room1_pm_2_5
+                  name: Пыль 2.5
+                - entity: sensor.hws_room1_pm_10_0
+                  name: Пыль 10
