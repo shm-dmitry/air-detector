@@ -65,7 +65,9 @@ Board#2:
 ![изображение](https://github.com/shm-dmitry/air-detector/assets/19342331/3bfaf705-65f7-4504-8d73-c2d4607b93e4)
 
 MQTT Broker data:
+
 Board#1: topic `/air/1`
+
 Board#2: topic `/air/0`
 
 ![изображение](https://github.com/shm-dmitry/air-detector/assets/19342331/0cf3964a-08c0-48bd-abbc-3c9617d6365f)
