@@ -1,6 +1,8 @@
 Project info
 =======
 
+Project released.
+
 This project contains 2 boards with different sensor sets.
 
 Board#1:
@@ -39,7 +41,7 @@ Additional features:
 
 Home assistant files
 =======
-- Board#1 - in progress
+- Board#1 - hass/board1
 - Board#2 - hass/board2
 
 Project status
