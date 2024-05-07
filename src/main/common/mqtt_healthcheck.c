@@ -20,10 +20,16 @@ uint8_t mqtt_healthcheck_received_counter = 0;
 
 void mqtt_healthcheck_events(const char * data, void *) {
 	if (strcmp(data, "restart") == 0) {
+		// remove 'restart' from MQTT topic to avoid infinite restart loop
+		mqtt_publish_sync(CONFIG_MQTT_HEALTHCHECK_TOPIC, "-1");
+
 		LOGE(LOG_MQTT, "Healthcheck received %s command. Restart!", data);
 		esp_restart();
 	} else {
-		mqtt_healthcheck_received_counter = atoi(data);
+		int v = atoi(data);
+		if (v >= 0) {
+			mqtt_healthcheck_received_counter = v;
+		}
 	}
 }
 
