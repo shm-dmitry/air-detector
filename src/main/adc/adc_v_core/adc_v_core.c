@@ -28,13 +28,20 @@
 #define ADC_V_CORE_DEBUG_COMPENSATIONS			true
 #define ADC_V_CORE_DEBUG_CALCULATION			true
 
-#define ADC_V_CORE_CALIBRATE_DELTA_A0 200
+#define ADC_V_CORE_CALIBRATE_DELTA_A0 700
 #define ADC_V_CORE_CALIBRATE_DELTA_AUTORECALIBRATE_A0 50
 #define ADC_V_CORE_AUTORECALIBRATE_COUNTER_MAX 5
+
+#define ADC_V_CORE_CALIBRATE_STATUS__OK			 0
+#define ADC_V_CORE_CALIBRATE_STATUS__PARTICAL	 1
+#define ADC_V_CORE_CALIBRATE_STATUS__ERROR		 2
+#define ADC_V_CORE_CALIBRATE_STATUS__NOT_ALLOWED 3
+#define ADC_V_CORE_CALIBRATE_STATUS__NO_COMPES   4
 
 typedef struct {
 	char * name;
 	char * topic_data;
+	char * topic_command;
 	char * tag;
 
 	int8_t autorecalibrate_counter;
@@ -43,6 +50,7 @@ typedef struct {
 
 	uint16_t calibration_value;
 	uint16_t calibrate_find_value_x10;
+	uint16_t calibration_zero_offset;
 
 	adc_v_core__compensation_t compensation_settings;
 	int8_t compensation_t;
@@ -51,9 +59,10 @@ typedef struct {
 	adc_v_core__functions_t  functions;
 } adc_v_core_context_t;
 
+void adc_v_core_timer_exec_function(void* arg);
 void adc_v_core_timer_apply_correction_function(void* arg);
 void adc_v_core_init_auto_compensation(adc_v_core_context_t * context);
-void adc_v_core_calibrate_execute(adc_v_core_context_t * context, uint16_t adc, bool full);
+uint8_t adc_v_core_calibrate_execute(adc_v_core_context_t * context, uint16_t adc, bool full);
 
 bool adc_v_core_adc2result(adc_v_core_context_t * context, uint16_t adc, bool autocompensation, double * result) {
 	if (context->calibration_value == ADC_V_CORE_CALIBRATION_NOVALUE || context->calibration_value == 0) {
@@ -103,17 +112,17 @@ bool adc_v_core_adc2result(adc_v_core_context_t * context, uint16_t adc, bool au
 	return true;
 }
 
-void adc_v_core_calibrate(adc_v_core_context_t * context) {
+uint8_t adc_v_core_calibrate(adc_v_core_context_t * context) {
 	if (!context->functions.is_startup_allowed()) {
 		LOGE(context->tag, "Calibration not allowed");
-		return;
+		return ADC_V_CORE_CALIBRATE_STATUS__NOT_ALLOWED;
 	}
 
 	int value = 0;
 	esp_err_t res = adc_oneshot_read(adc_get_channel(), (adc_channel_t) (context->adc_channel), &value);
 	if (res != ESP_OK) {
 		LOGE(context->tag, "Cant read ADC value, err=%04X", res);
-		return;
+		return ADC_V_CORE_CALIBRATE_STATUS__ERROR;
 	}
 
 	context->calibration_value = (uint16_t)value;
@@ -124,11 +133,13 @@ void adc_v_core_calibrate(adc_v_core_context_t * context) {
 	if (_t == ADC_V_CORE_COMPENSATION_NOVALUE || _h == ADC_V_CORE_COMPENSATION_NOVALUE) {
 		adc_v_core_nws_write(context->tag, context->calibration_value);
 		LOGW(context->tag, "No data for compensaction.");
-		return;
+		return ADC_V_CORE_CALIBRATE_STATUS__NO_COMPES;
 	}
 
-	adc_v_core_calibrate_execute(context, value, true);
+	uint8_t status = adc_v_core_calibrate_execute(context, value, true);
 	adc_v_core_nws_write(context->tag, context->calibration_value);
+
+	return status;
 }
 
 bool adc_v_core_read_value(adc_v_core_context_t * context, double * result) {
@@ -139,16 +150,22 @@ bool adc_v_core_read_value(adc_v_core_context_t * context, double * result) {
 		return false;
 	}
 
-	return adc_v_core_adc2result(context, value, true, result);
+	bool adcres =  adc_v_core_adc2result(context, value, true, result);
+
+	if (context->calibration_zero_offset) {
+		*result = *result - (double)context->calibration_zero_offset;
+	}
+
+	return adcres;
 }
 
-void adc_v_core_calibrate_execute(adc_v_core_context_t * context, uint16_t adc, bool full) {
+uint8_t adc_v_core_calibrate_execute(adc_v_core_context_t * context, uint16_t adc, bool full) {
 	uint16_t delta = full ? ADC_V_CORE_CALIBRATE_DELTA_A0 : ADC_V_CORE_CALIBRATE_DELTA_AUTORECALIBRATE_A0;
 
-	uint16_t min_a0 = (adc < delta ? 0 : adc - delta);
-	uint16_t max_a0 = (((uint32_t) adc + (uint32_t)delta) > (uint32_t)0xFFFF ? 0xFFFF : adc + delta);
+	uint16_t min_a0 = ((adc < delta) ? 0 : (adc - delta));
+	uint16_t max_a0 = ((((uint32_t) adc + (uint32_t)delta) > (uint32_t)0xFFFF) ? 0xFFFF : (adc + delta));
 
-	bool findmin = context->calibrate_find_value_x10 == 0;
+	bool findmin = (context->calibrate_find_value_x10 == 0) ? true : false;
 	double found_value = findmin ? 1000000 : 0;
 	uint16_t found_value_a0 = adc;
 
@@ -163,7 +180,7 @@ void adc_v_core_calibrate_execute(adc_v_core_context_t * context, uint16_t adc, 
 		if (!adc_v_core_adc2result(context, adc, false, &result)) {
 			context->calibration_value = adc;
 			LOGE(context->tag, "Calibration - error in adc_v_core_adc2result");
-			return;
+			return ADC_V_CORE_CALIBRATE_STATUS__ERROR;
 		}
 
 		if (
@@ -171,7 +188,7 @@ void adc_v_core_calibrate_execute(adc_v_core_context_t * context, uint16_t adc, 
 			(!findmin && result > (((double)context->calibrate_find_value_x10) / 10.0 - 0.5))
 				) {
 			LOGI(context->tag, "Calibration - compensation applied. Result: %f; A0: %d -> %d", result, adc, i);
-			return;
+			return ADC_V_CORE_CALIBRATE_STATUS__OK;
 		}
 
 		if (
@@ -183,8 +200,10 @@ void adc_v_core_calibrate_execute(adc_v_core_context_t * context, uint16_t adc, 
 		}
 	}
 
-	LOGW(context->tag, "Calibration - compensation applied partically. value = %f; A0: %d -> %d", found_value, adc, found_value_a0);
+	LOGW(context->tag, "Calibration - compensation applied partially. value = %f; A0: %d -> %d", found_value, adc, found_value_a0);
 	context->calibration_value = found_value_a0;
+
+	return ADC_V_CORE_CALIBRATE_STATUS__PARTICAL;
 }
 
 void adc_v_core_commands(const char * data, void * arg) {
@@ -196,8 +215,23 @@ void adc_v_core_commands(const char * data, void * arg) {
 	}
 
 	char * type = cJSON_GetStringValue(cJSON_GetObjectItem(root, "type"));
-	if (strcmp(type, "calibrate") == 0) {
-		adc_v_core_calibrate(context);
+	if (type && strcmp(type, "calibrate") == 0) {
+		uint16_t zero = get_number16_from_json(cJSON_GetObjectItem(root, "zero"), 0);
+		if (zero != context->calibration_zero_offset) {
+			context->calibration_zero_offset = zero;
+			adc_v_core_nws_write_zero_offset(context->tag, zero);
+		}
+
+		uint8_t status = adc_v_core_calibrate(context);
+		char * reply = (char *)malloc(35);
+		if (reply) {
+			memset(reply, 0, 35);
+			snprintf(reply, 34, "{\"status\": %d, \"zero\": %d}", status, context->calibration_zero_offset);
+			mqtt_publish(context->topic_command, reply);
+			free(reply);
+		}
+
+		adc_v_core_timer_exec_function(arg);
 	}
 
 	cJSON_Delete(root);
@@ -265,6 +299,13 @@ void adc_v_core_init(const adc_v_core_setup_t * settings) {
     }
     strcpy(context->topic_data, buildconfig.topic_data);
 
+    context->topic_command = (char *)malloc(strlen(buildconfig.topic_command) + 1);
+    if (context->topic_command == NULL) {
+        LOGE(buildconfig.tag, "OOM: topic_command");
+    	return;
+    }
+    strcpy(context->topic_command, buildconfig.topic_command);
+
     context->tag = (char *)malloc(strlen(buildconfig.tag) + 1);
     if (context->tag == NULL) {
         LOGE(buildconfig.tag, "OOM: topic_data");
@@ -277,6 +318,9 @@ void adc_v_core_init(const adc_v_core_setup_t * settings) {
 
     context->calibration_value = ADC_V_CORE_CALIBRATION_NOVALUE;
     adc_v_core_nws_read(buildconfig.tag, &(context->calibration_value));
+
+    context->calibration_zero_offset = 0;
+    adc_v_core_nws_read_zero_offset(buildconfig.tag, &(context->calibration_zero_offset));
 
     context->compensation_h = ADC_V_CORE_COMPENSATION_NOVALUE;
     context->compensation_t = ADC_V_CORE_COMPENSATION_NOVALUE;
@@ -333,14 +377,14 @@ void adc_v_core_timer_apply_correction_function(void* arg) {
 			context->compensation_t = data.temperature;
 		} else {
 			context->compensation_t = context->compensation_settings.temperature ?
-					ADC_V_CORE_COMPENSATION_IGNORED : ADC_V_CORE_COMPENSATION_NOVALUE;
+					ADC_V_CORE_COMPENSATION_NOVALUE : ADC_V_CORE_COMPENSATION_IGNORED;
 		}
 
 		if (context->compensation_settings.humidity && data.humidity <= 100) {
 			context->compensation_h = data.humidity;
 		} else {
 			context->compensation_h = context->compensation_settings.humidity ?
-					ADC_V_CORE_COMPENSATION_IGNORED : ADC_V_CORE_COMPENSATION_NOVALUE;
+					ADC_V_CORE_COMPENSATION_NOVALUE : ADC_V_CORE_COMPENSATION_IGNORED;
 		}
 	}
 #endif
