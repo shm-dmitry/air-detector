@@ -33,14 +33,14 @@ void adc_v_core_nws_write(const char * name, uint16_t value) {
 	}
 }
 
-void adc_v_core_nws_read_zero_offset(const char * name,  uint16_t * to) {
+void adc_v_core_nws_read_postfix(const char * name, char postfix, uint16_t * to) {
 	uint8_t len = strlen(name);
 	char * tmp = malloc(len + 2 + 1);
 	if (tmp) {
 		memset(tmp, 0, len + 2 + 1);
 		strcpy(tmp, name);
 		tmp[len] = '_';
-		tmp[len + 1] = 'z';
+		tmp[len + 1] = postfix;
 		tmp[len + 2] = 0;
 
 		adc_v_core_nws_read(tmp, to);
@@ -49,14 +49,14 @@ void adc_v_core_nws_read_zero_offset(const char * name,  uint16_t * to) {
 	}
 }
 
-void adc_v_core_nws_write_zero_offset(const char * name, uint16_t value) {
+void adc_v_core_nws_write_postfix(const char * name, char postfix, uint16_t value) {
 	uint8_t len = strlen(name);
 	char * tmp = malloc(len + 2 + 1);
 	if (tmp) {
 		memset(tmp, 0, len + 2 + 1);
 		strcpy(tmp, name);
 		tmp[len] = '_';
-		tmp[len + 1] = 'z';
+		tmp[len + 1] = postfix;
 		tmp[len + 2] = 0;
 
 		adc_v_core_nws_write(tmp, value);

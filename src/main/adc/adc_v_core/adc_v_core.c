@@ -38,6 +38,10 @@
 #define ADC_V_CORE_CALIBRATE_STATUS__NOT_ALLOWED 3
 #define ADC_V_CORE_CALIBRATE_STATUS__NO_COMPES   4
 
+#define POSTFIX_RESULT_ZERO_OFFSET  'z'
+#define POSTFIX_RESULT_SCALE_FACTOR 's'
+#define POSTFIX_AUTO_CALIBRATE      'a'
+
 typedef struct {
 	char * name;
 	char * topic_data;
@@ -50,7 +54,10 @@ typedef struct {
 
 	uint16_t calibration_value;
 	uint16_t calibrate_find_value_x10;
-	uint16_t calibration_zero_offset;
+	bool     auto_calibration_enabled;
+
+	uint16_t result_zero_offset;
+	uint8_t  result_scale_factor;
 
 	adc_v_core__compensation_t compensation_settings;
 	int8_t compensation_t;
@@ -64,7 +71,7 @@ void adc_v_core_timer_apply_correction_function(void* arg);
 void adc_v_core_init_auto_compensation(adc_v_core_context_t * context);
 uint8_t adc_v_core_calibrate_execute(adc_v_core_context_t * context, uint16_t adc, bool full);
 
-bool adc_v_core_adc2result(adc_v_core_context_t * context, uint16_t adc, bool autocompensation, double * result) {
+bool adc_v_core_adc2result(adc_v_core_context_t * context, uint16_t adc, bool autocalibration, double * result) {
 	if (context->calibration_value == ADC_V_CORE_CALIBRATION_NOVALUE || context->calibration_value == 0) {
 		LOGW(context->tag, "No calibration. ADC = %d", adc);
 		return false;
@@ -90,7 +97,7 @@ bool adc_v_core_adc2result(adc_v_core_context_t * context, uint16_t adc, bool au
 #endif
 
 	double _result = context->functions.rsro2value(rs_ro);
-	if (adjust_success && autocompensation) {
+	if (adjust_success && autocalibration) {
 		if (_result < 0) {
 			if (context->autorecalibrate_counter < ADC_V_CORE_AUTORECALIBRATE_COUNTER_MAX) {
 				context->autorecalibrate_counter++;
@@ -150,10 +157,14 @@ bool adc_v_core_read_value(adc_v_core_context_t * context, double * result) {
 		return false;
 	}
 
-	bool adcres =  adc_v_core_adc2result(context, value, true, result);
+	bool adcres =  adc_v_core_adc2result(context, value, context->auto_calibration_enabled, result);
 
-	if (context->calibration_zero_offset) {
-		*result = *result - (double)context->calibration_zero_offset;
+	if (context->result_zero_offset > 0) {
+		*result = *result - (double)context->result_zero_offset;
+	}
+
+	if (context->result_scale_factor > 1) {
+		*result = (*result) * (double)context->result_scale_factor;
 	}
 
 	return adcres;
@@ -215,23 +226,51 @@ void adc_v_core_commands(const char * data, void * arg) {
 	}
 
 	char * type = cJSON_GetStringValue(cJSON_GetObjectItem(root, "type"));
-	if (type && strcmp(type, "calibrate") == 0) {
-		uint16_t zero = get_number16_from_json(cJSON_GetObjectItem(root, "zero"), 0);
-		if (zero != context->calibration_zero_offset) {
-			context->calibration_zero_offset = zero;
-			adc_v_core_nws_write_zero_offset(context->tag, zero);
-		}
+	if (type) {
+		if (strcmp(type, "calibrate") == 0) {
+			uint8_t status = adc_v_core_calibrate(context);
+			char * reply = (char *)malloc(18);
+			if (reply) {
+				memset(reply, 0, 18);
+				snprintf(reply, 17, "{\"status\": %d}", status);
+				mqtt_publish(context->topic_command, reply);
+				free(reply);
+			}
 
-		uint8_t status = adc_v_core_calibrate(context);
-		char * reply = (char *)malloc(35);
-		if (reply) {
-			memset(reply, 0, 35);
-			snprintf(reply, 34, "{\"status\": %d, \"zero\": %d}", status, context->calibration_zero_offset);
-			mqtt_publish(context->topic_command, reply);
-			free(reply);
-		}
+			adc_v_core_timer_exec_function(arg);
+		} else if (strcmp(type, "settings") == 0) {
+			uint16_t zero = get_number16_from_json(cJSON_GetObjectItem(root, "zero"), 0);
+			if (zero != context->result_zero_offset) {
+				context->result_zero_offset = zero;
+				adc_v_core_nws_write_postfix(context->tag, POSTFIX_RESULT_ZERO_OFFSET, zero);
+			}
 
-		adc_v_core_timer_exec_function(arg);
+			uint8_t scale = get_number8_from_json(cJSON_GetObjectItem(root, "scale"), 0);
+			if (zero != context->result_scale_factor) {
+				context->result_scale_factor = scale;
+				adc_v_core_nws_write_postfix(context->tag, POSTFIX_RESULT_SCALE_FACTOR, zero);
+			}
+
+			uint8_t auto_calibrate = get_boolean_from_json(cJSON_GetObjectItem(root, "auto"), 1, 0, 0xFF);
+			if (auto_calibrate != 0xFF) {
+				if ((context->auto_calibration_enabled && auto_calibrate == 0) ||
+					(!context->auto_calibration_enabled && auto_calibrate == 1)) {
+					context->auto_calibration_enabled = (auto_calibrate == 1);
+					adc_v_core_nws_write_postfix(context->tag, POSTFIX_AUTO_CALIBRATE, zero);
+				}
+			}
+
+			char * reply = (char *)malloc(50);
+			if (reply) {
+				memset(reply, 0, 50);
+				snprintf(reply, 49, "{\"zero\": %d, \"scale\": %d, \"auto\": %s}",
+						context->result_zero_offset,
+						context->result_scale_factor,
+						(context->auto_calibration_enabled ? "true" : "false"));
+				mqtt_publish(context->topic_command, reply);
+				free(reply);
+			}
+		}
 	}
 
 	cJSON_Delete(root);
@@ -319,8 +358,17 @@ void adc_v_core_init(const adc_v_core_setup_t * settings) {
     context->calibration_value = ADC_V_CORE_CALIBRATION_NOVALUE;
     adc_v_core_nws_read(buildconfig.tag, &(context->calibration_value));
 
-    context->calibration_zero_offset = 0;
-    adc_v_core_nws_read_zero_offset(buildconfig.tag, &(context->calibration_zero_offset));
+    context->result_zero_offset = 0;
+    adc_v_core_nws_read_postfix(buildconfig.tag, POSTFIX_RESULT_ZERO_OFFSET, &(context->result_zero_offset));
+
+    uint16_t temp = 1;
+
+    adc_v_core_nws_read_postfix(buildconfig.tag, POSTFIX_RESULT_SCALE_FACTOR, &temp);
+    context->result_scale_factor = temp;
+
+    temp = 1;
+    adc_v_core_nws_read_postfix(buildconfig.tag, POSTFIX_AUTO_CALIBRATE, &temp);
+    context->auto_calibration_enabled = temp;
 
     context->compensation_h = ADC_V_CORE_COMPENSATION_NOVALUE;
     context->compensation_t = ADC_V_CORE_COMPENSATION_NOVALUE;
