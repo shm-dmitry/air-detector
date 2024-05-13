@@ -239,13 +239,13 @@ void adc_v_core_commands(const char * data, void * arg) {
 
 			adc_v_core_timer_exec_function(arg);
 		} else if (strcmp(type, "settings") == 0) {
-			uint16_t zero = get_number16_from_json(cJSON_GetObjectItem(root, "zero"), 0);
+			uint16_t zero = get_number16_from_json(cJSON_GetObjectItem(root, "zero"), context->result_zero_offset);
 			if (zero != context->result_zero_offset) {
 				context->result_zero_offset = zero;
 				adc_v_core_nws_write_postfix(context->tag, POSTFIX_RESULT_ZERO_OFFSET, zero);
 			}
 
-			uint8_t scale = get_number8_from_json(cJSON_GetObjectItem(root, "scale"), 0);
+			uint8_t scale = get_number8_from_json(cJSON_GetObjectItem(root, "scale"), context->result_scale_factor);
 			if (zero != context->result_scale_factor) {
 				context->result_scale_factor = scale;
 				adc_v_core_nws_write_postfix(context->tag, POSTFIX_RESULT_SCALE_FACTOR, zero);
